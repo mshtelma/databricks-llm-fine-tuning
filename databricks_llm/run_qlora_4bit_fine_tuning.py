@@ -47,8 +47,8 @@ from databricks_llm.fine_tune import train
 
 training_args = ExtendedTrainingArguments(
     dataset="timdettmers/openassistant-guanaco",
-    model="tiiuae/falcon-40b",
-    tokenizer="tiiuae/falcon-40b",
+    model="tiiuae/falcon-7b-instruct",
+    tokenizer="tiiuae/falcon-7b-instruct",
     use_lora=True,
     use_4bit=True,
     output_dir="/local_disk0/output",
@@ -57,12 +57,10 @@ training_args = ExtendedTrainingArguments(
     gradient_checkpointing=False,
     gradient_accumulation_steps=1,
     learning_rate=2e-6,
-    optim="paged_adamw_32bit",
+    optim="paged_adamw_8bit",
     num_train_epochs=3,
     weight_decay=1,
-    evaluation_strategy="epoch",
-    fp16=True,
-    bf16=False,
+    evaluation_strategy="steps",
     save_strategy="steps",
     save_steps=20,
 )

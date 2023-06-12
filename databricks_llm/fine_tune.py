@@ -1,7 +1,7 @@
 import json
 from dataclasses import field, dataclass
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import os
 import torch
@@ -54,9 +54,9 @@ class ExtendedTrainingArguments:
     optim: Optional[str] = field(default="adamw_hf")
     num_train_epochs: Optional[int] = field(default=1)
     weight_decay: Optional[int] = field(default=1)
-    logging_strategy: Optional[IntervalStrategy] = field(default=IntervalStrategy.STEPS)
-    evaluation_strategy: Optional[str] = field(default=IntervalStrategy.STEPS)
-    save_strategy: Optional[str] = field(default=IntervalStrategy.STEPS)
+    logging_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
+    evaluation_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
+    save_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
     fp16: Optional[bool] = field(default=False)
     bf16: Optional[bool] = field(default=True)
     save_steps: Optional[int] = field(default=100)
@@ -111,7 +111,7 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
     # config.attn_config['attn_impl'] = 'triton'
 
     if args.use_4bit:
-        import bitsandbytes
+        import bitsandbytes as bnb
         from transformers import BitsAndBytesConfig
 
         bnb_config = BitsAndBytesConfig(
@@ -189,8 +189,9 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         logging_steps=args.logging_steps,
         push_to_hub=False,
         disable_tqdm=True,
+        report_to=[],
         # group_by_length=True,
-        # ddp_find_unused_parameters=False,
+        ddp_find_unused_parameters=False,
     )
 
     torch.backends.cuda.matmul.allow_tf32 = True
