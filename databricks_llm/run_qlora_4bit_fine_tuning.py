@@ -22,6 +22,11 @@
 # MAGIC %pip install -r ../requirements.txt
 
 # COMMAND ----------
+# MAGIC %pip install bitsandbytes
+# MAGIC %pip install -U git+https://github.com/huggingface/transformers.git
+# MAGIC %pip install -U git+https://github.com/huggingface/peft.git
+# MAGIC %pip install -U git+https://github.com/huggingface/accelerate.git
+# COMMAND ----------
 
 import os
 
@@ -55,22 +60,13 @@ training_args = ExtendedTrainingArguments(
     optim="paged_adamw_32bit",
     num_train_epochs=3,
     weight_decay=1,
-    do_eval=True,
-    do_train=True,
     evaluation_strategy="epoch",
-    # fp16=False,
-    bf16=True,
-    deepspeed=False,
+    fp16=True,
+    bf16=False,
     save_strategy="steps",
     save_steps=20,
-    # max_steps=20,
-    report_to=[],
-    group_by_length=True,
-    ddp_find_unused_parameters=False,
 )
 
 train(training_args)
 
 # COMMAND ----------
-
-d

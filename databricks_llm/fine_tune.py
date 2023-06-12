@@ -17,7 +17,6 @@ from ray.train.huggingface import TransformersCheckpoint
 
 import ray.data
 
-
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -25,7 +24,7 @@ from transformers import (
     HfArgumentParser,
     PreTrainedTokenizer,
     TrainingArguments,
-    Trainer,
+    Trainer, IntervalStrategy,
 )
 
 
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExtendedTrainingArguments(TrainingArguments):
+class ExtendedTrainingArguments:
     number_of_tasks: Optional[int] = field(default=2)
     dataset: Optional[str] = field(default=None)
     model: Optional[str] = field(default=None)
@@ -44,15 +43,24 @@ class ExtendedTrainingArguments(TrainingArguments):
 
     final_model_output_path: Optional[str] = field(default="/local_disk0/final_model")
 
-    deepspeed_config: Optional[str] = field(
-        default="../ds_configs/ds_zero_3_cpu_offloading.json"
-    )
+    deepspeed_config: Optional[str] = field(default=None)
 
-
-# tiiuae/falcon-7b-instruct   falcon-40b-instruct
-MODEL_PATH = "tiiuae/falcon-40b"
-TOKENIZER_PATH = "tiiuae/falcon-40b"
-DEFAULT_TRAINING_DATASET = "sciq"
+    output_dir: Optional[str] = field(default=None)
+    per_device_train_batch_size: Optional[int] = field(default=1)
+    per_device_eval_batch_size: Optional[int] = field(default=1)
+    gradient_checkpointing: Optional[bool] = field(default=True)
+    gradient_accumulation_steps: Optional[int] = field(default=1)
+    learning_rate: Optional[float] = field(default=1e-6)
+    optim: Optional[str] = field(default="adamw_hf")
+    num_train_epochs: Optional[int] = field(default=1)
+    weight_decay: Optional[int] = field(default=1)
+    logging_strategy: Optional[IntervalStrategy] = field(default=IntervalStrategy.STEPS)
+    evaluation_strategy: Optional[str] = field(default=IntervalStrategy.STEPS)
+    save_strategy: Optional[str] = field(default=IntervalStrategy.STEPS)
+    fp16: Optional[bool] = field(default=False)
+    bf16: Optional[bool] = field(default=True)
+    save_steps: Optional[int] = field(default=100)
+    logging_steps: Optional[int] = field(default=10)
 
 
 def load_training_dataset(
@@ -149,7 +157,7 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
 
 
 def get_tokenizer(
-    pretrained_tokenizer_name_or_path: str = TOKENIZER_PATH,
+    pretrained_tokenizer_name_or_path: str,
 ) -> PreTrainedTokenizer:
     tokenizer = AutoTokenizer.from_pretrained(
         pretrained_tokenizer_name_or_path, trust_remote_code="true"
@@ -160,7 +168,6 @@ def get_tokenizer(
 
 def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
     args: ExtendedTrainingArguments = config["args"]
-    deepspeed_config_dict = config["deepspeed_config_dict"]
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -169,6 +176,7 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         gradient_checkpointing=args.gradient_checkpointing,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         learning_rate=args.learning_rate,
+        optim=args.optim,
         num_train_epochs=args.num_train_epochs,
         weight_decay=args.weight_decay,
         logging_strategy=args.logging_strategy,
@@ -176,7 +184,7 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         save_strategy=args.save_strategy,
         fp16=args.fp16,
         bf16=args.bf16,
-        deepspeed=deepspeed_config_dict,
+        deepspeed=config.get("deepspeed_config_dict", None),
         save_steps=args.save_steps,
         logging_steps=args.logging_steps,
         push_to_hub=False,
@@ -235,6 +243,7 @@ def train_ray(args: ExtendedTrainingArguments):
                 checkpoint_score_attribute="eval_loss",
                 checkpoint_score_order="min",
             ),
+            verbose=0,
         ),
         datasets={"train": train_ray_dataset, "evaluation": eval_ray_dataset},
         # preprocessor=preprocessor,
