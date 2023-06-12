@@ -30,7 +30,7 @@ import ray.util.scheduling_strategies
 from ray.util.spark import setup_ray_cluster
 
 # COMMAND ----------
-MODEL = "tiiuae/falcon-7b"
+MODEL = "tiiuae/falcon-40b"
 NUMBER_OF_NODES = 2
 NUMBER_OF_GPUS_PER_NODE = 8
 
@@ -67,17 +67,16 @@ training_args = ExtendedTrainingArguments(
     dataset="timdettmers/openassistant-guanaco",
     model=MODEL,
     tokenizer=MODEL,
-    use_lora=False,
+    use_lora=True,
     use_4bit=False,
-    deepspeed_config="../ds_configs/ds_zero_3_cpu_offloading.json",
-    final_model_output_path="/dbfs/data-mle/llm/msh/falcon_7b_openassistant_guanac_v1",
+    deepspeed_config="../ds_configs/ds_zero_2.json",
+    final_model_output_path="/dbfs/data-mle/llm/msh/falcon_40b_openassistant_guanac_v1",
     output_dir="/local_disk0/output",
     per_device_train_batch_size=2,
     per_device_eval_batch_size=2,
     gradient_checkpointing=True,
     gradient_accumulation_steps=1,
     learning_rate=2e-6,
-    # optim="paged_adamw_32bit",
     num_train_epochs=1,
     weight_decay=1,
     do_eval=True,
@@ -89,8 +88,6 @@ training_args = ExtendedTrainingArguments(
     bf16=False,
     save_steps=20,
     logging_steps=10,
-    # group_by_length=True,
-    # ddp_find_unused_parameters=False,
 )
 
 result = train_ray(training_args)
