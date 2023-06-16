@@ -4,7 +4,5 @@ click>=8.0.4,<9
 datasets>=2.10.0,<3
 deepspeed==0.9.4
 transformers[torch]==4.28.1
-ray[default]==2.5.0
-ray[rllib]==2.5.0
 peft
 einops

@@ -9,13 +9,7 @@ import torch
 from datasets import Dataset, load_dataset
 import transformers
 from peft import LoraConfig, get_peft_model
-from ray.air import ScalingConfig, RunConfig, CheckpointConfig
 
-# from ray.air.integrations.mlflow import MLflowLoggerCallback
-from ray.train.huggingface import HuggingFaceTrainer
-from ray.train.huggingface import TransformersCheckpoint
-
-import ray.data
 
 from transformers import (
     AutoModelForCausalLM,
@@ -34,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ExtendedTrainingArguments:
-    local_rank: Optional[int] = field(default=-1)
+    local_rank: Optional[str] = field(default="-1")
     number_of_tasks: Optional[int] = field(default=2)
     dataset: Optional[str] = field(default=None)
     model: Optional[str] = field(default=None)
@@ -55,7 +49,7 @@ class ExtendedTrainingArguments:
     learning_rate: Optional[float] = field(default=1e-6)
     optim: Optional[str] = field(default="adamw_hf")
     num_train_epochs: Optional[int] = field(default=None)
-    max_steps: Optional[int] = field(default=None)
+    max_steps: Optional[int] = field(default=-1)
     weight_decay: Optional[int] = field(default=1)
     logging_strategy: Optional[Union[str, IntervalStrategy]] = field(
         default=IntervalStrategy.STEPS
@@ -88,22 +82,28 @@ def load_training_dataset(
 
     # Inspired from: https://huggingface.co/learn/nlp-course/chapter7/6?fw=pt
     def tokenize(element):
+        input_batch = []
+        attention_masks = []
+
         outputs = tokenizer(
             element[dataset_text_field]
             if not use_formatting_func
             else formatting_func(element),
             truncation=True,
+            padding=True,
             max_length=max_seq_len,
             return_overflowing_tokens=False,
             return_length=True,
-            return_tensors="np",
         )
-        input_batch = []
-        for length, input_ids in zip(outputs["length"], outputs["input_ids"]):
+
+        for length, input_ids, attention_mask in zip(
+            outputs["length"], outputs["input_ids"], outputs["attention_mask"]
+        ):
             if length == max_seq_len:
                 input_batch.append(input_ids)
+                attention_masks.append(attention_mask)
 
-        return {"input_ids": input_batch}
+        return {"input_ids": input_batch, "attention_mask": attention_masks}
 
     tokenized_dataset = dataset.map(
         tokenize, batched=True, remove_columns=dataset.column_names
@@ -146,8 +146,8 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
 
     if args.use_lora:
         lora_config = LoraConfig(
-            r=4,
-            lora_alpha=8,
+            r=16,
+            lora_alpha=32,
             target_modules=[
                 "query_key_value",
                 "dense",
@@ -223,6 +223,11 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
 
 
 def train_ray(args: ExtendedTrainingArguments):
+    import ray.data
+    from ray.air import ScalingConfig, RunConfig, CheckpointConfig
+    from ray.train.huggingface import HuggingFaceTrainer
+    from ray.train.huggingface import TransformersCheckpoint
+
     tokenizer = get_tokenizer(args.tokenizer)
     train_dataset = load_training_dataset(
         tokenizer, args.dataset, "train", "text", 256, formatting_func=None
@@ -280,7 +285,14 @@ def train(args: ExtendedTrainingArguments):
     eval_dataset = load_training_dataset(
         tokenizer, args.dataset, "test", "text", 256, formatting_func=None
     )
-    trainer = setup_hf_trainer(train_dataset, eval_dataset, args=args)
+    with open(args.deepspeed_config) as json_data:
+        deepspeed_config_dict = json.load(json_data)
+    trainer = setup_hf_trainer(
+        train_dataset,
+        eval_dataset,
+        args=args,
+        deepspeed_config_dict=deepspeed_config_dict,
+    )
     trainer.train()
     trainer.save_model(args.final_model_output_path)
 
@@ -290,8 +302,6 @@ def main():
 
     parsed = parser.parse_args_into_dataclasses()
     args: ExtendedTrainingArguments = parsed[0]
-
-    os.environ["LOCAL_RANK"] = str(args.local_rank)
 
     train(args)
 

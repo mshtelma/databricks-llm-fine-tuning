@@ -22,6 +22,8 @@
 # MAGIC %pip install -r ../requirements.txt
 
 # COMMAND ----------
+# MAGIC %pip install ray[default]==2.5.0
+# COMMAND ----------
 # MAGIC %sh cd .. && pip install .
 
 # COMMAND ----------

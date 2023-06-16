@@ -18,20 +18,17 @@
 
 # COMMAND ----------
 
-# MAGIC %sh cd .. && pip install .
-
-# COMMAND ----------
-
-# MAGIC %sh cd .. && deepspeed --num_gpus=8 \
+# MAGIC %sh cd .. && deepspeed \
+# MAGIC --num_gpus=8 \
 # MAGIC --module databricks_llm.fine_tune \
-# MAGIC --final_model_output_path="/dbfs/data-mle/llm/msh/falcon_40b_lora_openassistant_guanac_v1" \
+# MAGIC --final_model_output_path="/dbfs/data-mle/llm/msh/falcon_7b_lora_openassistant_guanac_v1" \
 # MAGIC --output_dir="/local_disk0/output" \
 # MAGIC --dataset="timdettmers/openassistant-guanaco" \
 # MAGIC --model="tiiuae/falcon-7b" \
 # MAGIC --tokenizer="tiiuae/falcon-7b" \
-# MAGIC --use_lora=false \
+# MAGIC --use_lora=true \
 # MAGIC --use_4bit=false \
-# MAGIC --deepspeed_config="../ds_configs/ds_zero_3_cpu_offloading.json" \
+# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
 # MAGIC --fp16=false \
 # MAGIC --bf16=true \
 # MAGIC --per_device_train_batch_size=1 \
