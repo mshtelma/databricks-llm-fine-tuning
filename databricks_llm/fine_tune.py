@@ -24,7 +24,8 @@ from transformers import (
     HfArgumentParser,
     PreTrainedTokenizer,
     TrainingArguments,
-    Trainer, IntervalStrategy,
+    Trainer,
+    IntervalStrategy,
 )
 
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ExtendedTrainingArguments:
+    local_rank: Optional[int] = field(default=-1)
     number_of_tasks: Optional[int] = field(default=2)
     dataset: Optional[str] = field(default=None)
     model: Optional[str] = field(default=None)
@@ -52,11 +54,18 @@ class ExtendedTrainingArguments:
     gradient_accumulation_steps: Optional[int] = field(default=1)
     learning_rate: Optional[float] = field(default=1e-6)
     optim: Optional[str] = field(default="adamw_hf")
-    num_train_epochs: Optional[int] = field(default=1)
+    num_train_epochs: Optional[int] = field(default=None)
+    max_steps: Optional[int] = field(default=None)
     weight_decay: Optional[int] = field(default=1)
-    logging_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
-    evaluation_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
-    save_strategy: Optional[Union[str,IntervalStrategy]] = field(default=IntervalStrategy.STEPS)
+    logging_strategy: Optional[Union[str, IntervalStrategy]] = field(
+        default=IntervalStrategy.STEPS
+    )
+    evaluation_strategy: Optional[Union[str, IntervalStrategy]] = field(
+        default=IntervalStrategy.STEPS
+    )
+    save_strategy: Optional[Union[str, IntervalStrategy]] = field(
+        default=IntervalStrategy.STEPS
+    )
     fp16: Optional[bool] = field(default=False)
     bf16: Optional[bool] = field(default=True)
     save_steps: Optional[int] = field(default=100)
@@ -127,7 +136,7 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
         # config=config,
         quantization_config=bnb_config,
         trust_remote_code="true",
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16,
     )
 
     if args.use_4bit:
@@ -137,8 +146,8 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
 
     if args.use_lora:
         lora_config = LoraConfig(
-            r=8,
-            lora_alpha=16,
+            r=4,
+            lora_alpha=8,
             target_modules=[
                 "query_key_value",
                 "dense",
@@ -150,6 +159,7 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
             task_type="CAUSAL_LM",
         )
         model = get_peft_model(model, lora_config)
+        model.print_trainable_parameters()
 
     model.config.use_cache = False
 
@@ -169,7 +179,10 @@ def get_tokenizer(
 def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
     args: ExtendedTrainingArguments = config["args"]
 
+    torch.backends.cuda.matmul.allow_tf32 = True
+
     training_args = TrainingArguments(
+        local_rank=args.local_rank,
         output_dir=args.output_dir,
         per_device_train_batch_size=args.per_device_train_batch_size,
         per_device_eval_batch_size=args.per_device_eval_batch_size,
@@ -178,6 +191,7 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         learning_rate=args.learning_rate,
         optim=args.optim,
         num_train_epochs=args.num_train_epochs,
+        max_steps=args.max_steps,
         weight_decay=args.weight_decay,
         logging_strategy=args.logging_strategy,
         evaluation_strategy=args.evaluation_strategy,
@@ -193,8 +207,6 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         # group_by_length=True,
         ddp_find_unused_parameters=False,
     )
-
-    torch.backends.cuda.matmul.allow_tf32 = True
 
     tokenizer = get_tokenizer(args.tokenizer)
     model = setup_model(args)
@@ -278,6 +290,8 @@ def main():
 
     parsed = parser.parse_args_into_dataclasses()
     args: ExtendedTrainingArguments = parsed[0]
+
+    os.environ["LOCAL_RANK"] = str(args.local_rank)
 
     train(args)
 
