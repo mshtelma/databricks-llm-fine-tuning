@@ -17,7 +17,7 @@
 # MAGIC %pip install -r ../requirements.txt
 
 # COMMAND ----------
-dbfs_output_location = "/dbfs/tmp/llm/falcon_7b_lora_openassistant_guanac_v1"
+dbfs_output_location = "/dbfs/llm/falcon_7b_oas_guanac_v2"
 # COMMAND ----------
 
 # MAGIC !cd .. && deepspeed \
@@ -65,7 +65,7 @@ class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
         """
         # Initialize tokenizer and language model
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            context.artifacts["repository"], padding_side="left"
+            "tiiuae/falcon-7b", padding_side="left", trust_remote_code=True
         )
         self.model = transformers.AutoModelForCausalLM.from_pretrained(
             context.artifacts["repository"],
@@ -149,9 +149,9 @@ with mlflow.start_run() as run:
         python_model=FalconPyFuncModel(),
         artifacts={"repository": dbfs_output_location},
         pip_requirements=[
-            "torch",
-            "transformers",
-            "accelerate",
+            "torch==2.0.1",
+            "transformers==4.28.1",
+            "accelerate==0.18.0",
             "einops",
             "sentencepiece",
         ],
@@ -162,16 +162,8 @@ with mlflow.start_run() as run:
 
 # COMMAND ----------
 
-# Register model in MLflow Model Registry
-result = mlflow.register_model(
-    "runs:/" + run.info.run_id + "/model", "falcon-7b-instruct"
-)
-# Note: Due to the large size of the model, the registration process might take longer than the default maximum wait time of 300 seconds. MLflow could throw an exception indicating that the max wait time has been exceeded. Don't worry if this happens - it's not necessarily an error. Instead, you can confirm the registration status of the model by directly checking the model registry. This exception is merely a time-out notification and does not necessarily imply a failure in the registration process.
-
-# COMMAND ----------
-
 # Load the logged model
-loaded_model = mlflow.pyfunc.load_model(f"models:/{result.name}/{result.version}")
+loaded_model = mlflow.pyfunc.load_model("runs:/" + run.info.run_id + "/model")
 
 # COMMAND ----------
 
@@ -180,3 +172,11 @@ input_example = pd.DataFrame(
     {"prompt": ["what is ML?"], "temperature": [0.5], "max_tokens": [100]}
 )
 loaded_model.predict(input_example)
+
+# COMMAND ----------
+
+# Register model in MLflow Model Registry
+result = mlflow.register_model(
+    "runs:/" + run.info.run_id + "/model", "falcon-7b-fine-tuned"
+)
+# Note: Due to the large size of the model, the registration process might take longer than the default maximum wait time of 300 seconds. MLflow could throw an exception indicating that the max wait time has been exceeded. Don't worry if this happens - it's not necessarily an error. Instead, you can confirm the registration status of the model by directly checking the model registry. This exception is merely a time-out notification and does not necessarily imply a failure in the registration process.
