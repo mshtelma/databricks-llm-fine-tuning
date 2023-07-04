@@ -28,9 +28,7 @@
     "contiguous_gradients": true,
     "round_robin_gradients": true,
     "sub_group_size": 1e9,
-    "reduce_bucket_size": "auto",
-    "stage3_prefetch_bucket_size": "auto",
-    "stage3_param_persistence_threshold": "auto",
+   
     "stage3_max_live_parameters": 1e9,
     "stage3_gather_16bit_weights_on_model_save": true,
     "offload_param": {

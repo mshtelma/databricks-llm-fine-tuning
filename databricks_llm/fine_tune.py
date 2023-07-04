@@ -20,6 +20,7 @@ from transformers import (
     TrainingArguments,
     Trainer,
     IntervalStrategy,
+    AutoConfig
 )
 
 
@@ -131,9 +132,14 @@ def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
         )
     else:
         bnb_config = None
+    config = AutoConfig.from_pretrained(args.model, trust_remote_code=True)
+    #i#f config.model_type == "mpt":
+        # change this to use triton-based FlashAttention
+        #config.attn_config["attn_impl"] = "triton"
+        #config.init_device = "meta"
     model = transformers.AutoModelForCausalLM.from_pretrained(
         args.model,
-        # config=config,
+        config=config,
         quantization_config=bnb_config,
         trust_remote_code="true",
         torch_dtype=torch.bfloat16,

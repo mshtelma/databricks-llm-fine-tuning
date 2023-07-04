@@ -1,12 +1,12 @@
 # Databricks notebook source
-# MAGIC !wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
+!wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
+  dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
+  dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
+  dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
+  dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
 
 # COMMAND ----------
 
@@ -14,39 +14,47 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python
+
+# COMMAND ----------
+
 # MAGIC %pip install -r ../requirements.txt
 
 # COMMAND ----------
-dbfs_output_location = "/dbfs/llm/falcon_7b_oas_guanac_v2"
-# COMMAND ----------
 
-# MAGIC !cd .. && deepspeed \
-# MAGIC --num_gpus=4 \
-# MAGIC --module databricks_llm.fine_tune \
-# MAGIC --final_model_output_path="{dbfs_output_location}" \
-# MAGIC --output_dir="/local_disk0/output" \
-# MAGIC --dataset="timdettmers/openassistant-guanaco" \
-# MAGIC --model="tiiuae/falcon-7b" \
-# MAGIC --tokenizer="tiiuae/falcon-7b" \
-# MAGIC --use_lora=false \
-# MAGIC --use_4bit=false \
-# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
-# MAGIC --fp16=false \
-# MAGIC --bf16=true \
-# MAGIC --per_device_train_batch_size=1 \
-# MAGIC --per_device_eval_batch_size=1 \
-# MAGIC --gradient_checkpointing=true \
-# MAGIC --gradient_accumulation_steps=1 \
-# MAGIC --learning_rate=2e-6 \
-# MAGIC --num_train_epochs=1 \
-# MAGIC --weight_decay=1 \
-# MAGIC --evaluation_strategy="steps" \
-# MAGIC --save_strategy="steps" \
-# MAGIC --save_steps=20
+dbfs_output_location = "/dbfs/llm/mpt7b_test"
 
 # COMMAND ----------
-# MAGIC !ls -lah {dbfs_output_location}
+
+!cd .. && deepspeed \
+--num_gpus=8 \
+--module databricks_llm.fine_tune \
+--final_model_output_path="{dbfs_output_location}" \
+--output_dir="/local_disk0/output" \
+--dataset="timdettmers/openassistant-guanaco" \
+--model="mosaicml/mpt-7b-instruct" \
+--tokenizer="mosaicml/mpt-7b-instruct" \
+--use_lora=false \
+--use_4bit=false \
+--deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+--fp16=false \
+--bf16=true \
+--per_device_train_batch_size=1 \
+--per_device_eval_batch_size=1 \
+--gradient_checkpointing=false \
+--learning_rate=2e-6 \
+--num_train_epochs=1 \
+--weight_decay=1 \
+--evaluation_strategy="steps" \
+--save_strategy="steps" \
+--save_steps=20
+
 # COMMAND ----------
+
+!ls -lah {dbfs_output_location}
+
+# COMMAND ----------
+
 import pandas as pd
 import transformers
 import mlflow
