@@ -1,69 +1,24 @@
 import json
-from dataclasses import field, dataclass
 import logging
-from typing import Optional, Union
 
 import os
 import torch
 
 from datasets import Dataset, load_dataset
-import transformers
-from peft import LoraConfig, get_peft_model
 
 
 from transformers import (
     AutoModelForCausalLM,
-    AutoTokenizer,
     DataCollatorForLanguageModeling,
     HfArgumentParser,
-    PreTrainedTokenizer,
     TrainingArguments,
     Trainer,
-    IntervalStrategy,
 )
 
+from databricks_llm.model_utils import get_model_and_tokenizer, get_tokenizer
+from databricks_llm.utils import ExtendedTrainingArguments
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ExtendedTrainingArguments:
-    local_rank: Optional[str] = field(default="-1")
-    number_of_tasks: Optional[int] = field(default=2)
-    dataset: Optional[str] = field(default=None)
-    model: Optional[str] = field(default=None)
-    tokenizer: Optional[str] = field(default=None)
-
-    use_lora: Optional[bool] = field(default=True)
-    use_4bit: Optional[bool] = field(default=False)
-
-    final_model_output_path: Optional[str] = field(default="/local_disk0/final_model")
-
-    deepspeed_config: Optional[str] = field(default=None)
-
-    output_dir: Optional[str] = field(default=None)
-    per_device_train_batch_size: Optional[int] = field(default=1)
-    per_device_eval_batch_size: Optional[int] = field(default=1)
-    gradient_checkpointing: Optional[bool] = field(default=True)
-    gradient_accumulation_steps: Optional[int] = field(default=1)
-    learning_rate: Optional[float] = field(default=1e-6)
-    optim: Optional[str] = field(default="adamw_hf")
-    num_train_epochs: Optional[int] = field(default=None)
-    max_steps: Optional[int] = field(default=-1)
-    weight_decay: Optional[int] = field(default=1)
-    logging_strategy: Optional[Union[str, IntervalStrategy]] = field(
-        default=IntervalStrategy.STEPS
-    )
-    evaluation_strategy: Optional[Union[str, IntervalStrategy]] = field(
-        default=IntervalStrategy.STEPS
-    )
-    save_strategy: Optional[Union[str, IntervalStrategy]] = field(
-        default=IntervalStrategy.STEPS
-    )
-    fp16: Optional[bool] = field(default=False)
-    bf16: Optional[bool] = field(default=True)
-    save_steps: Optional[int] = field(default=100)
-    logging_steps: Optional[int] = field(default=10)
 
 
 def load_training_dataset(
@@ -112,70 +67,6 @@ def load_training_dataset(
     return tokenized_dataset
 
 
-def setup_model(args: ExtendedTrainingArguments) -> AutoModelForCausalLM:
-    logger.info(f"Loading model: {args.model}")
-    # config = AutoConfig.from_pretrained(
-    #     args.model, trust_remote_code="true", torch_dtype=torch.bfloat16
-    # )
-    # config.attn_config['attn_impl'] = 'triton'
-
-    if args.use_4bit:
-        import bitsandbytes as bnb
-        from transformers import BitsAndBytesConfig
-
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
-    else:
-        bnb_config = None
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        args.model,
-        # config=config,
-        quantization_config=bnb_config,
-        trust_remote_code="true",
-        torch_dtype=torch.bfloat16,
-    )
-
-    if args.use_4bit:
-        from peft import prepare_model_for_kbit_training
-
-        model = prepare_model_for_kbit_training(model)
-
-    if args.use_lora:
-        lora_config = LoraConfig(
-            r=16,
-            lora_alpha=32,
-            target_modules=[
-                "query_key_value",
-                "dense",
-                "dense_h_to_4h",
-                "dense_4h_to_h",
-            ],
-            lora_dropout=0.05,
-            bias="none",
-            task_type="CAUSAL_LM",
-        )
-        model = get_peft_model(model, lora_config)
-        model.print_trainable_parameters()
-
-    model.config.use_cache = False
-
-    return model
-
-
-def get_tokenizer(
-    pretrained_tokenizer_name_or_path: str,
-) -> PreTrainedTokenizer:
-    tokenizer = AutoTokenizer.from_pretrained(
-        pretrained_tokenizer_name_or_path, trust_remote_code="true"
-    )
-    tokenizer.pad_token = tokenizer.eos_token
-    return tokenizer
-
-
 def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
     args: ExtendedTrainingArguments = config["args"]
 
@@ -208,8 +99,7 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         ddp_find_unused_parameters=False,
     )
 
-    tokenizer = get_tokenizer(args.tokenizer)
-    model = setup_model(args)
+    model, tokenizer = get_model_and_tokenizer(args.model, args.use_4bit, args.use_lora)
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     trainer = Trainer(
@@ -308,6 +198,7 @@ def main():
 
 if __name__ == "__main__":
     os.environ["HF_HOME"] = "/local_disk0/hf"
+    os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
     os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
 
     logging.basicConfig(
