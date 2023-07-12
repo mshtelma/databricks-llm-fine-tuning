@@ -86,11 +86,3 @@ def generate_text_for_df(
     print(responses_list)
     df[target_col] = responses_list
     return df
-
-
-def get_prompt_bulletppoints(query: str) -> str:
-    return f"""### Human: Summarize this paragraph into bullet points including all figures. Don't include information that was not presented in the document.\n\n{query}.\n###"""
-
-
-def get_prompt_recreate_finding(query: str) -> str:
-    return f"""### Human: Convert the following bullet points into coherent text.\n\n{query}.\n###"""
