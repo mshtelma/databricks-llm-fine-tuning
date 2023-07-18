@@ -46,17 +46,12 @@ get_dbutils().widgets.combobox(
     "pretrained_name_or_path",
 )
 vector_database_location = get_dbutils().widgets.text(
-    "vector_database_location", "", "vector_database_location"
+    "vector_database_location", "/dbfs/llm/vectorsearch", "vector_database_location"
 )
 vector_database_collection_name = get_dbutils().widgets.text(
-    "vector_database_collection_name", "", "vector_database_collection_name"
+    "vector_database_collection_name", "documents", "vector_database_collection_name"
 )
 
-# COMMAND ----------
-questions = [
-    "Write a love letter to Edgar Allan Poe",
-    "Write a tweet announcing a new language model called Dolly from Databricks",
-]
 # COMMAND ----------
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, inference=True)
