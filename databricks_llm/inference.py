@@ -1,6 +1,9 @@
-from typing import Any, Tuple, List, Union, Callable
+from dataclasses import dataclass
+from typing import Any, Tuple, List, Union, Callable, Optional, Dict
 from itertools import islice
-
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.docstore.document import Document
+from langchain.vectorstores import Chroma
 import torch
 from transformers import (
     AutoModelForCausalLM,
@@ -10,6 +13,20 @@ from transformers import (
 )
 
 import pandas as pd
+
+
+@dataclass
+class DocumentContext:
+    db: Chroma
+
+    def similarity_search(
+        self,
+        question: str,
+        number_of_results: int = 5,
+        filter: Optional[Dict[str, str]] = None,
+    ):
+        docs = self.db.similarity_search(question, k=number_of_results, filter=filter)
+        return [doc.page_content for doc in docs]
 
 
 def generate_text(
@@ -52,8 +69,7 @@ def generate_text(
 def batchify(iterable, batch_size):
     l = len(iterable)
     for ndx in range(0, l, batch_size):
-        yield iterable[ndx:min(ndx + batch_size, l)]
-
+        yield iterable[ndx : min(ndx + batch_size, l)]
 
 
 def generate_text_for_df(
@@ -86,3 +102,33 @@ def generate_text_for_df(
     print(responses_list)
     df[target_col] = responses_list
     return df
+
+
+def load_vector_db(
+    collection_name: str,
+    persist_directory: str,
+    model_name: str = "sentence-transformers/all-mpnet-base-v2",
+) -> DocumentContext:
+    hf_embed = HuggingFaceEmbeddings(model_name=model_name)
+    db = Chroma(
+        collection_name=collection_name,
+        embedding_function=hf_embed,
+        persist_directory=persist_directory,
+    )
+    return DocumentContext(db)
+
+
+def generate_text_with_context(
+    model: AutoModelForCausalLM,
+    tokenizer: PreTrainedTokenizer,
+    prompt_template: str,
+    question: str,
+    doc_ctx: DocumentContext,
+    doc_ctx_filter: Optional[Dict[str, str]],
+    temperature: float = 0.7,
+    top_k: float = 0.92,
+    max_new_tokens: int = 200,
+):
+    docs = "\n".join(doc_ctx.similarity_search(question, filter=doc_ctx_filter))
+    prompt = prompt_template.format(context=docs, question=question)
+    return generate_text(model, tokenizer, prompt, temperature, top_k, max_new_tokens)

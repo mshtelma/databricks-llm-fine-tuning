@@ -8,3 +8,6 @@ peft
 einops
 bitsandbytes
 tiktoken
+spacy
+langchain[spacy]
+chromadb==0.3.22

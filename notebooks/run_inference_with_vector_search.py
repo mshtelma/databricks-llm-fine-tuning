@@ -26,7 +26,12 @@ logging.basicConfig(
 logging.getLogger("py4j").setLevel(logging.WARNING)
 logging.getLogger("sh.command").setLevel(logging.ERROR)
 # COMMAND ----------
-from databricks_llm.inference import generate_text, generate_text_for_df
+from databricks_llm.inference import (
+    generate_text,
+    generate_text_for_df,
+    generate_text_with_context,
+    load_vector_db,
+)
 from databricks_llm.model_utils import get_model_and_tokenizer
 from databricks_llm.notebook_utils import get_dbutils
 
@@ -40,6 +45,13 @@ get_dbutils().widgets.combobox(
     SUPPORTED_INPUT_MODELS,
     "pretrained_name_or_path",
 )
+vector_database_location = get_dbutils().widgets.text(
+    "vector_database_location", "", "vector_database_location"
+)
+vector_database_collection_name = get_dbutils().widgets.text(
+    "vector_database_collection_name", "", "vector_database_collection_name"
+)
+
 # COMMAND ----------
 questions = [
     "Write a love letter to Edgar Allan Poe",
@@ -48,14 +60,34 @@ questions = [
 # COMMAND ----------
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, inference=True)
-# COMMAND ----------
+vector_database_location = get_dbutils().widgets.get("vector_database_location")
+vector_database_collection_name = get_dbutils().widgets.get(
+    "vector_database_collection_name"
+)
 
-results = generate_text(model, tokenizer, questions)
+# COMMAND ----------
+prompt_template = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+  Instruction: 
+  Answer the question using only information in the following paragraphs to answer the question at the end. Explain the answer with reference to these paragraphs. If you don't know, say that you do not know.
+
+  {context}
+ 
+  Question: {question}
+
+  Response: 
+  """
+# COMMAND ----------
+doc_ctx = load_vector_db(
+    vector_database_collection_name,
+    vector_database_location,
+    model_name="sentence-transformers/all-mpnet-base-v2",
+)
+# COMMAND ----------
+question = ""
+filter = ""
+results = generate_text_with_context(
+    model, tokenizer, prompt_template, question, doc_ctx, doc_ctx_filter={"": filter}
+)
 for result in results:
     print(result)
-# COMMAND ----------
-q = questions + questions + questions + questions
-q_df = pd.DataFrame(data={"txt": q}, columns=["txt"])
-
-res_df = generate_text_for_df(model, tokenizer, q_df, "txt", "gen_txt", batch_size=2)
-display(res_df)
