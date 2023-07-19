@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Tuple, List, Union, Callable, Optional, Dict
 from itertools import islice
+
+import numpy as np
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
@@ -30,16 +32,18 @@ class DocumentContext:
 
 
 def generate_text(
-    model: AutoModelForCausalLM,
-    tokenizer: PreTrainedTokenizer,
-    prompt: Union[List[str], str],
-    temperature: float = 0.7,
-    top_k: float = 0.92,
-    max_new_tokens: int = 200,
+        model: AutoModelForCausalLM,
+        tokenizer: PreTrainedTokenizer,
+        prompt: Union[List[str], str],
+        temperature: float = 0.7,
+        top_k: float = 0.92,
+        max_new_tokens: int = 200,
 ) -> List[str]:
     if isinstance(prompt, str):
-        prompt = [prompt]
-    batch = tokenizer(prompt, padding=True, truncation=True, return_tensors="pt")
+        prompts = [prompt]
+    else:
+        prompts = prompt
+    batch = tokenizer(prompts, padding=True, truncation=True, return_tensors="pt")
     batch = batch.to("cuda")
 
     with torch.no_grad():
@@ -55,12 +59,16 @@ def generate_text(
         )
 
     generated_responses = []
-    for output_tokens, curr_inpt_ids in zip(output_tokens_batch, batch):
-        prompt_length = len(curr_inpt_ids)
+    for output_tokens, curr_prompt in zip(output_tokens_batch, prompts):
+        prompt_length = len(tokenizer.encode(curr_prompt, return_tensors="pt")[0])
+        output_tokens = np.trim_zeros(output_tokens.cpu().numpy())
+        output_tokens = output_tokens[prompt_length:]
         generated_response = tokenizer.decode(
-            output_tokens[prompt_length:], skip_special_tokens=True
+            output_tokens, skip_special_tokens=True
         )
-        generated_response = generated_response.replace("Assistant:", "")
+        colon_index = generated_response.find(':')
+        if colon_index>0:
+            generated_response = generated_response[colon_index + 1:].strip()
         generated_responses.append(generated_response)
 
     return generated_responses

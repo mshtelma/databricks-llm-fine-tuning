@@ -97,6 +97,8 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         report_to=[],
         # group_by_length=True,
         ddp_find_unused_parameters=False,
+
+        fsdp=["full_shard", "offload"]
     )
 
     model, tokenizer = get_model_and_tokenizer(args.model, args.use_4bit, args.use_lora)
@@ -175,8 +177,11 @@ def train(args: ExtendedTrainingArguments):
     eval_dataset = load_training_dataset(
         tokenizer, args.dataset, "test", "text", 256, formatting_func=None
     )
-    with open(args.deepspeed_config) as json_data:
-        deepspeed_config_dict = json.load(json_data)
+    if args.deepspeed_config:
+        with open(args.deepspeed_config) as json_data:
+            deepspeed_config_dict = json.load(json_data)
+    else:
+        deepspeed_config_dict = None
     trainer = setup_hf_trainer(
         train_dataset,
         eval_dataset,
