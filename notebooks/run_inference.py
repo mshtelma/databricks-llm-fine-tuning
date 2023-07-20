@@ -13,6 +13,12 @@
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
 # COMMAND ----------
+import os
+
+os.environ["HF_HOME"] = "/local_disk0/hf"
+os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
+os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+# COMMAND ----------
 
 import logging
 
@@ -32,7 +38,13 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 DEFAULT_INPUT_MODEL = "mosaicml/mpt-7b-instruct"
-SUPPORTED_INPUT_MODELS = ["mosaicml/mpt-30b-instruct", "mosaicml/mpt-7b-instruct"]
+SUPPORTED_INPUT_MODELS = [
+    "mosaicml/mpt-30b-instruct",
+    "mosaicml/mpt-7b-instruct",
+    "meta-llama/Llama-2-7b-chat-hf",
+    "meta-llama/Llama-2-13b-chat-hf",
+    "meta-llama/Llama-2-70b-chat-hf",
+]
 # COMMAND ----------
 get_dbutils().widgets.combobox(
     "pretrained_name_or_path",

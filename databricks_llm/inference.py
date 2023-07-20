@@ -32,12 +32,12 @@ class DocumentContext:
 
 
 def generate_text(
-        model: AutoModelForCausalLM,
-        tokenizer: PreTrainedTokenizer,
-        prompt: Union[List[str], str],
-        temperature: float = 0.7,
-        top_k: float = 0.92,
-        max_new_tokens: int = 200,
+    model: AutoModelForCausalLM,
+    tokenizer: PreTrainedTokenizer,
+    prompt: Union[List[str], str],
+    temperature: float = 0.7,
+    top_k: float = 0.92,
+    max_new_tokens: int = 200,
 ) -> List[str]:
     if isinstance(prompt, str):
         prompts = [prompt]
@@ -63,12 +63,10 @@ def generate_text(
         prompt_length = len(tokenizer.encode(curr_prompt, return_tensors="pt")[0])
         output_tokens = np.trim_zeros(output_tokens.cpu().numpy())
         output_tokens = output_tokens[prompt_length:]
-        generated_response = tokenizer.decode(
-            output_tokens, skip_special_tokens=True
-        )
-        colon_index = generated_response.find(':')
-        if colon_index>0:
-            generated_response = generated_response[colon_index + 1:].strip()
+        generated_response = tokenizer.decode(output_tokens, skip_special_tokens=True)
+        colon_index = generated_response.find(":")
+        if colon_index > 0:
+            generated_response = generated_response[colon_index + 1 :].strip()
         generated_responses.append(generated_response)
 
     return generated_responses

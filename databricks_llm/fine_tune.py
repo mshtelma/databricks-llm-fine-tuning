@@ -97,8 +97,7 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         report_to=[],
         # group_by_length=True,
         ddp_find_unused_parameters=False,
-
-        fsdp=["full_shard", "offload"]
+        fsdp=["full_shard", "offload"],
     )
 
     model, tokenizer = get_model_and_tokenizer(args.model, args.use_4bit, args.use_lora)
