@@ -92,6 +92,7 @@ def get_tokenizer(
 def get_model_and_tokenizer(
     pretrained_name_or_path: str,
     use_4bit: bool = False,
+    load_in_8bit: bool = False,
     use_lora: bool = False,
     inference: bool = False,
 ) -> Tuple[AutoModelForCausalLM, PreTrainedTokenizer]:
@@ -100,7 +101,7 @@ def get_model_and_tokenizer(
     )
     model = get_model(
         pretrained_name_or_path,
-        load_in_8bit=True,
+        load_in_8bit=load_in_8bit,
         use_4bit=use_4bit,
         use_lora=use_lora,
         inference=inference,

@@ -1,12 +1,12 @@
 # Databricks notebook source
-# MAGIC !wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
+!wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
+  dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
+  dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
+  dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
+  dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
 
 # COMMAND ----------
 
@@ -17,8 +17,11 @@
 # MAGIC %pip install -r ../requirements.txt
 
 # COMMAND ----------
+
 dbfs_output_location = "/dbfs/llm/falcon_7b_oas_guanac_v2"
+
 # COMMAND ----------
+
 import pathlib
 from pyspark.ml.torch.distributor import TorchDistributor
 
@@ -54,12 +57,13 @@ args = [
 ]
 distributor = TorchDistributor(num_processes=8, local_mode=False, use_gpu=True)
 distributor.run(train_file, *args)
-# COMMAND ----------
-
 
 # COMMAND ----------
-# MAGIC !ls -lah {dbfs_output_location}
+
+!ls -lah {dbfs_output_location}
+
 # COMMAND ----------
+
 import pandas as pd
 import transformers
 import mlflow
@@ -68,7 +72,6 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
-
 
 class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):

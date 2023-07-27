@@ -1,25 +1,15 @@
 # Databricks notebook source
-# MAGIC !wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
-
-
-# COMMAND ----------
-
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
 
 # MAGIC %pip install -r ../requirements.txt
+
 # COMMAND ----------
 
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
+
 # COMMAND ----------
 
 import logging
@@ -31,14 +21,18 @@ logging.basicConfig(
 )
 logging.getLogger("py4j").setLevel(logging.WARNING)
 logging.getLogger("sh.command").setLevel(logging.ERROR)
+
 # COMMAND ----------
+
 from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "mosaicml/mpt-7b-instruct"
-SUPPORTED_INPUT_MODELS = ["mosaicml/mpt-30b-instruct", "mosaicml/mpt-7b-instruct"]
+DEFAULT_INPUT_MODEL = "tiiuae/falcon-40b-instruct"
+SUPPORTED_INPUT_MODELS = ["mosaicml/mpt-30b-instruct", "mosaicml/mpt-7b-instruct", "meta-llama/Llama-2-13b-chat-hf", "tiiuae/falcon-7b-instruct", "tiiuae/falcon-40b-instruct"]
+
 # COMMAND ----------
+
 get_dbutils().widgets.text("num_gpus", "4", "num_gpus")
 get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
 get_dbutils().widgets.combobox(
@@ -52,6 +46,7 @@ get_dbutils().widgets.text(
     "timdettmers/openassistant-guanaco",
     "dataset",
 )
+
 # COMMAND ----------
 
 num_gpus = get_dbutils().widgets.get("num_gpus")
@@ -61,33 +56,74 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 
 # COMMAND ----------
 
-# MAGIC !cd .. && deepspeed \
-# MAGIC --num_gpus={num_gpus} \
-# MAGIC --module databricks_llm.fine_tune \
-# MAGIC --final_model_output_path="{dbfs_output_location}" \
-# MAGIC --output_dir="/local_disk0/output" \
-# MAGIC --dataset={dataset} \
-# MAGIC --model={pretrained_name_or_path} \
-# MAGIC --tokenizer={pretrained_name_or_path} \
-# MAGIC --use_lora=false \
-# MAGIC --use_4bit=false \
-# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
-# MAGIC --fp16=false \
-# MAGIC --bf16=true \
-# MAGIC --per_device_train_batch_size=1 \
-# MAGIC --per_device_eval_batch_size=1 \
-# MAGIC --gradient_checkpointing=true \
-# MAGIC --gradient_accumulation_steps=1 \
-# MAGIC --learning_rate=2e-6 \
-# MAGIC --num_train_epochs=1 \
-# MAGIC --weight_decay=1 \
-# MAGIC --evaluation_strategy="steps" \
-# MAGIC --save_strategy="steps" \
-# MAGIC --save_steps=20
+import pathlib
+from pyspark.ml.torch.distributor import TorchDistributor
+
+curr_dir = pathlib.Path.cwd()
+
+train_file = str(curr_dir /  ".." /"databricks_llm"/ "fine_tune.py")
+print(train_file)
+deepspeed_config = str(
+    (curr_dir / ".." / "ds_configs" / "ds_zero_3_cpu_offloading.json").resolve()
+)
+print(deepspeed_config)
+args = [
+    f"--final_model_output_path={dbfs_output_location}",
+    "--output_dir=/local_disk0/output",
+    "--dataset=timdettmers/openassistant-guanaco",
+    f"--model={pretrained_name_or_path}",
+    f"--tokenizer={pretrained_name_or_path}",
+    "--use_lora=false",
+    "--use_4bit=false",
+    f"--deepspeed_config={deepspeed_config}",
+    "--fp16=false",
+    "--bf16=true",
+    "--per_device_train_batch_size=1",
+    "--per_device_eval_batch_size=1",
+    "--gradient_checkpointing=true",
+    "--gradient_accumulation_steps=1",
+    "--learning_rate=2e-6",
+    "--weight_decay=1 ",
+    "--evaluation_strategy=steps",
+    "--save_strategy=steps",
+    "--save_steps=20",
+    "--num_train_epochs=1",
+]
+distributor = TorchDistributor(num_processes=8, local_mode=False, use_gpu=True)
+distributor.run(train_file, *args)
 
 # COMMAND ----------
-# MAGIC !ls -lah {dbfs_output_location}
+
+!cd .. && deepspeed \
+--num_gpus={num_gpus} \
+--module databricks_llm.fine_tune \
+--final_model_output_path="{dbfs_output_location}" \
+--output_dir="/local_disk0/output" \
+--dataset={dataset} \
+--model={pretrained_name_or_path} \
+--tokenizer={pretrained_name_or_path} \
+--use_lora=false \
+--use_4bit=false \
+--deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+--fp16=false \
+--bf16=true \
+--per_device_train_batch_size=1 \
+--per_device_eval_batch_size=1 \
+--gradient_checkpointing=true \
+--gradient_accumulation_steps=1 \
+--learning_rate=2e-6 \
+--num_train_epochs=1 \
+--weight_decay=1 \
+--evaluation_strategy="steps" \
+--save_strategy="steps" \
+--save_steps=20
+
 # COMMAND ----------
+
+!ls -lah {dbfs_output_location}
+
+# COMMAND ----------
+
 import pandas as pd
 import transformers
 import mlflow
@@ -96,7 +132,6 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
-
 
 class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
