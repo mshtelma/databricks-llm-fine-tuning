@@ -12,6 +12,19 @@
 
 # COMMAND ----------
 
+import os
+os.environ["HF_HOME"] = "/local_disk0/hf"
+os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
+os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+#os.environ["NCCL_P2P_DISABLE"] = "1"
+#os.environ["NCCL_DEBUG"] = "INFO"
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
 import logging
 
 logging.basicConfig(
@@ -28,7 +41,7 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "tiiuae/falcon-40b-instruct"
+DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-13b-chat-hf"
 SUPPORTED_INPUT_MODELS = ["mosaicml/mpt-30b-instruct", "mosaicml/mpt-7b-instruct", "meta-llama/Llama-2-13b-chat-hf", "tiiuae/falcon-7b-instruct", "tiiuae/falcon-40b-instruct"]
 
 # COMMAND ----------
@@ -56,41 +69,7 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 
 # COMMAND ----------
 
-import pathlib
-from pyspark.ml.torch.distributor import TorchDistributor
-
-curr_dir = pathlib.Path.cwd()
-
-train_file = str(curr_dir /  ".." /"databricks_llm"/ "fine_tune.py")
-print(train_file)
-deepspeed_config = str(
-    (curr_dir / ".." / "ds_configs" / "ds_zero_3_cpu_offloading.json").resolve()
-)
-print(deepspeed_config)
-args = [
-    f"--final_model_output_path={dbfs_output_location}",
-    "--output_dir=/local_disk0/output",
-    "--dataset=timdettmers/openassistant-guanaco",
-    f"--model={pretrained_name_or_path}",
-    f"--tokenizer={pretrained_name_or_path}",
-    "--use_lora=false",
-    "--use_4bit=false",
-    f"--deepspeed_config={deepspeed_config}",
-    "--fp16=false",
-    "--bf16=true",
-    "--per_device_train_batch_size=1",
-    "--per_device_eval_batch_size=1",
-    "--gradient_checkpointing=true",
-    "--gradient_accumulation_steps=1",
-    "--learning_rate=2e-6",
-    "--weight_decay=1 ",
-    "--evaluation_strategy=steps",
-    "--save_strategy=steps",
-    "--save_steps=20",
-    "--num_train_epochs=1",
-]
-distributor = TorchDistributor(num_processes=8, local_mode=False, use_gpu=True)
-distributor.run(train_file, *args)
+# MAGIC %sh cd .. && pip install .
 
 # COMMAND ----------
 
