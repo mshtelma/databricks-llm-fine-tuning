@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 from transformers import (
     IntervalStrategy,
+    SchedulerType,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,13 @@ class ExtendedTrainingArguments:
     optim: Optional[str] = field(default="adamw_hf")
     num_train_epochs: Optional[int] = field(default=None)
     max_steps: Optional[int] = field(default=-1)
+    adam_beta1: float = field(default=0.9)
+    adam_beta2: float = field(default=0.999)
+    adam_epsilon: float = field(default=1e-8)
+    lr_scheduler_type: Union[SchedulerType, str] = field(
+        default="cosine",
+    )
+    warmup_steps: int = field(default=0)
     weight_decay: Optional[int] = field(default=1)
     logging_strategy: Optional[Union[str, IntervalStrategy]] = field(
         default=IntervalStrategy.STEPS
