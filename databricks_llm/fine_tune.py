@@ -6,6 +6,7 @@ import torch
 
 from datasets import Dataset, load_dataset
 
+from huggingface_hub import login
 
 from transformers import (
     AutoModelForCausalLM,
@@ -83,6 +84,11 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         optim=args.optim,
         num_train_epochs=args.num_train_epochs,
         max_steps=args.max_steps,
+        adam_beta1=args.adam_beta1,
+        adam_beta2=args.adam_beta2,
+        adam_epsilon=args.adam_epsilon,
+        lr_scheduler_type=args.lr_scheduler_type,
+        warmup_steps=args.warmup_steps,
         weight_decay=args.weight_decay,
         logging_strategy=args.logging_strategy,
         evaluation_strategy=args.evaluation_strategy,
@@ -94,13 +100,15 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         logging_steps=args.logging_steps,
         push_to_hub=False,
         disable_tqdm=True,
-        report_to=[],
+        report_to=["tensorboard"],
         # group_by_length=True,
         ddp_find_unused_parameters=False,
-        fsdp=["full_shard", "offload"],
+        # fsdp=["full_shard", "offload"],
     )
 
-    model, tokenizer = get_model_and_tokenizer(args.model, args.use_4bit, args.use_lora)
+    model, tokenizer = get_model_and_tokenizer(
+        args.model, use_4bit=args.use_4bit, load_in_8bit=False, use_lora=args.use_lora
+    )
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     trainer = Trainer(
@@ -196,6 +204,9 @@ def main():
 
     parsed = parser.parse_args_into_dataclasses()
     args: ExtendedTrainingArguments = parsed[0]
+
+    if args.token is not None and len(args.token):
+        login(args.token)
 
     train(args)
 
