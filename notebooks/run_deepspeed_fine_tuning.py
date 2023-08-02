@@ -11,6 +11,10 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
+from huggingface_hub import notebook_login
+
+notebook_login()
+# COMMAND ----------
 
 import os
 
@@ -62,20 +66,12 @@ get_dbutils().widgets.text(
     "mlabonne/guanaco-llama2",
     "dataset",
 )
-get_dbutils().widgets.text("huggingface_token", "", "huggingface_token")
 
 # COMMAND ----------
-
-from huggingface_hub import login
-
 num_gpus = get_dbutils().widgets.get("num_gpus")
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 dataset = get_dbutils().widgets.get("dataset")
 dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
-huggingface_token = get_dbutils().widgets.get("huggingface_token")
-
-if huggingface_token and len(huggingface_token) > 3:
-    login(token=huggingface_token)
 
 # COMMAND ----------
 

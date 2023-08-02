@@ -16,6 +16,10 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
+from huggingface_hub import notebook_login
+
+notebook_login()
+# COMMAND ----------
 
 import os
 
@@ -62,17 +66,8 @@ get_dbutils().widgets.combobox(
     SUPPORTED_INPUT_MODELS,
     "pretrained_name_or_path",
 )
-get_dbutils().widgets.text("huggingface_token", "", "huggingface_token")
-
 # COMMAND ----------
-
-from huggingface_hub import login
-
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
-huggingface_token = get_dbutils().widgets.get("huggingface_token")
-
-if huggingface_token and len(huggingface_token) > 3:
-    login(token=huggingface_token)
 
 # COMMAND ----------
 

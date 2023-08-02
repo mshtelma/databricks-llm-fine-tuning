@@ -13,6 +13,10 @@
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
 # COMMAND ----------
+from huggingface_hub import notebook_login
+
+notebook_login()
+# COMMAND ----------
 
 import logging
 
