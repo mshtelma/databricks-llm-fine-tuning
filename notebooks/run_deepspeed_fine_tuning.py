@@ -74,44 +74,44 @@ dataset = get_dbutils().widgets.get("dataset")
 dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 huggingface_token = get_dbutils().widgets.get("huggingface_token")
 
-if huggingface_token and len(huggingface_token)>3:
-  login(token=huggingface_token)
+if huggingface_token and len(huggingface_token) > 3:
+    login(token=huggingface_token)
 
 # COMMAND ----------
 
-!cd .. && deepspeed \
---num_gpus={num_gpus} \
---module databricks_llm.fine_tune \
---token="{huggingface_token}" \
---final_model_output_path="{dbfs_output_location}" \
---output_dir="/local_disk0/output" \
---dataset={dataset} \
---model={pretrained_name_or_path} \
---tokenizer={pretrained_name_or_path} \
---use_lora=false \
---use_4bit=false \
---deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
---fp16=false \
---bf16=true \
---per_device_train_batch_size=24 \
---per_device_eval_batch_size=24 \
---gradient_checkpointing=true \
---gradient_accumulation_steps=1 \
---learning_rate=3e-4 \
---adam_beta1=0.9 \
---adam_beta2=0.95 \
---adam_epsilon=1e-4 \
---lr_scheduler_type="cosine" \
---warmup_steps=5 \
---weight_decay=0.1 \
---evaluation_strategy="steps" \
---save_strategy="steps" \
---save_steps=5 \
---num_train_epochs=1
+# MAGIC !cd .. && deepspeed \
+# MAGIC --num_gpus={num_gpus} \
+# MAGIC --module databricks_llm.fine_tune \
+# MAGIC --token="{huggingface_token}" \
+# MAGIC --final_model_output_path="{dbfs_output_location}" \
+# MAGIC --output_dir="/local_disk0/output" \
+# MAGIC --dataset={dataset} \
+# MAGIC --model={pretrained_name_or_path} \
+# MAGIC --tokenizer={pretrained_name_or_path} \
+# MAGIC --use_lora=false \
+# MAGIC --use_4bit=false \
+# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+# MAGIC --fp16=false \
+# MAGIC --bf16=true \
+# MAGIC --per_device_train_batch_size=24 \
+# MAGIC --per_device_eval_batch_size=24 \
+# MAGIC --gradient_checkpointing=true \
+# MAGIC --gradient_accumulation_steps=1 \
+# MAGIC --learning_rate=3e-4 \
+# MAGIC --adam_beta1=0.9 \
+# MAGIC --adam_beta2=0.95 \
+# MAGIC --adam_epsilon=1e-4 \
+# MAGIC --lr_scheduler_type="cosine" \
+# MAGIC --warmup_steps=5 \
+# MAGIC --weight_decay=0.1 \
+# MAGIC --evaluation_strategy="steps" \
+# MAGIC --save_strategy="steps" \
+# MAGIC --save_steps=5 \
+# MAGIC --num_train_epochs=1
 
 # COMMAND ----------
 
-!ls -lah {dbfs_output_location}
+# MAGIC !ls -lah {dbfs_output_location}
 
 # COMMAND ----------
 
@@ -123,6 +123,7 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
+
 
 class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):

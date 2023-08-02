@@ -206,8 +206,7 @@ def main():
     args: ExtendedTrainingArguments = parsed[0]
 
     if args.token is not None and len(args.token):
-      login(args.token)
-
+        login(args.token)
 
     train(args)
 

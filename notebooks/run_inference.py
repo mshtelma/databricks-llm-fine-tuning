@@ -71,8 +71,8 @@ from huggingface_hub import login
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 huggingface_token = get_dbutils().widgets.get("huggingface_token")
 
-if huggingface_token and len(huggingface_token)>3:
-  login(token=huggingface_token)
+if huggingface_token and len(huggingface_token) > 3:
+    login(token=huggingface_token)
 
 # COMMAND ----------
 
@@ -81,18 +81,23 @@ questions = [
     "Write a tweet announcing a new language model called Dolly from Databricks",
     "Explain the novelty of GPT-3 in 5 bullet points",
     "PLease explain what is Machine Learning?",
-    "How are you?"
+    "How are you?",
 ]
 
 # COMMAND ----------
 
-model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, pretrained_name_or_path_tokenizer=pretrained_name_or_path, inference=True)
+model, tokenizer = get_model_and_tokenizer(
+    pretrained_name_or_path,
+    pretrained_name_or_path_tokenizer=pretrained_name_or_path,
+    inference=True,
+)
 
 # COMMAND ----------
 
 # MAGIC %md # Generation using fine-tuned Llama v2  & Llama v2 Prompt Structure
 
 # COMMAND ----------
+
 
 def get_prompt_llama(query: str) -> str:
     return f"""<s>[INST] <<SYS>>You are a helpful, respectful, and honest assistant. Your answers should not include any harmful, racist, sexist, or illegal content. If you don't know the answer to a question, avoid sharing false information.<</SYS>>{query} [/INST]###"""
@@ -105,9 +110,21 @@ def post_process(s: str) -> str:
     else:
         return s
 
+
 # COMMAND ----------
 
 q_df = pd.DataFrame(data={"txt": questions}, columns=["txt"])
 
-res_df = generate_text_for_df(model, tokenizer, q_df, "txt", "gen_txt", batch_size=2, gen_prompt_fn=get_prompt_llama, post_process_fn=post_process, max_new_tokens=512, temperature=0.1)
+res_df = generate_text_for_df(
+    model,
+    tokenizer,
+    q_df,
+    "txt",
+    "gen_txt",
+    batch_size=2,
+    gen_prompt_fn=get_prompt_llama,
+    post_process_fn=post_process,
+    max_new_tokens=512,
+    temperature=0.1,
+)
 display(res_df)
