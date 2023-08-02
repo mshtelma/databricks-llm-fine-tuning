@@ -22,9 +22,6 @@ os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
 
 # COMMAND ----------
 
-
-# COMMAND ----------
-
 import logging
 
 logging.basicConfig(
@@ -52,7 +49,7 @@ SUPPORTED_INPUT_MODELS = [
 
 # COMMAND ----------
 
-get_dbutils().widgets.text("num_gpus", "4", "num_gpus")
+get_dbutils().widgets.text("num_gpus", "8", "num_gpus")
 get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
 get_dbutils().widgets.combobox(
     "pretrained_name_or_path",
@@ -62,54 +59,62 @@ get_dbutils().widgets.combobox(
 )
 get_dbutils().widgets.text(
     "dataset",
-    "timdettmers/openassistant-guanaco",
+    "mlabonne/guanaco-llama2",
     "dataset",
 )
+get_dbutils().widgets.text("huggingface_token", "", "huggingface_token")
 
 # COMMAND ----------
+
+from huggingface_hub import login
 
 num_gpus = get_dbutils().widgets.get("num_gpus")
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 dataset = get_dbutils().widgets.get("dataset")
 dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
+huggingface_token = get_dbutils().widgets.get("huggingface_token")
+
+if huggingface_token and len(huggingface_token)>3:
+  login(token=huggingface_token)
 
 # COMMAND ----------
 
-# MAGIC %sh cd .. && pip install .
+
 
 # COMMAND ----------
 
-# MAGIC !cd .. && deepspeed \
-# MAGIC --num_gpus={num_gpus} \
-# MAGIC --module databricks_llm.fine_tune \
-# MAGIC --final_model_output_path="{dbfs_output_location}" \
-# MAGIC --output_dir="/local_disk0/output" \
-# MAGIC --dataset={dataset} \
-# MAGIC --model={pretrained_name_or_path} \
-# MAGIC --tokenizer={pretrained_name_or_path} \
-# MAGIC --use_lora=false \
-# MAGIC --use_4bit=false \
-# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
-# MAGIC --fp16=false \
-# MAGIC --bf16=true \
-# MAGIC --per_device_train_batch_size=1 \
-# MAGIC --per_device_eval_batch_size=1 \
-# MAGIC --gradient_checkpointing=true \
-# MAGIC --gradient_accumulation_steps=1 \
-# MAGIC --learning_rate=2e-6 \
-# MAGIC --adam_beta1=0.9 \
-# MAGIC --adam_beta2=0.95 \
-# MAGIC --adam_epsilon=1e-4 \
-# MAGIC --lr_scheduler_type=cosine \
-# MAGIC --warmup_steps=2000 \
-# MAGIC --weight_decay=0.1 \
-# MAGIC --evaluation_strategy="steps" \
-# MAGIC --save_strategy="steps" \
-# MAGIC --save_steps=20
+!cd .. && deepspeed \
+--num_gpus={num_gpus} \
+--module databricks_llm.fine_tune \
+--final_model_output_path="{dbfs_output_location}" \
+--output_dir="/local_disk0/output" \
+--dataset={dataset} \
+--model={pretrained_name_or_path} \
+--tokenizer={pretrained_name_or_path} \
+--use_lora=false \
+--use_4bit=false \
+--deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+--fp16=false \
+--bf16=true \
+--per_device_train_batch_size=24 \
+--per_device_eval_batch_size=24 \
+--gradient_checkpointing=true \
+--gradient_accumulation_steps=1 \
+--learning_rate=3e-4 \
+--adam_beta1=0.9 \
+--adam_beta2=0.95 \
+--adam_epsilon=1e-4 \
+--lr_scheduler_type="cosine" \
+--warmup_steps=5 \
+--weight_decay=0.1 \
+--evaluation_strategy="steps" \
+--save_strategy="steps" \
+--save_steps=5 \
+--num_train_epochs=1
 
 # COMMAND ----------
 
-# MAGIC !ls -lah {dbfs_output_location}
+!ls -lah {dbfs_output_location}
 
 # COMMAND ----------
 
@@ -121,7 +126,6 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
-
 
 class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):

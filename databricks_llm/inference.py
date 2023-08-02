@@ -64,9 +64,9 @@ def generate_text(
         output_tokens = np.trim_zeros(output_tokens.cpu().numpy())
         output_tokens = output_tokens[prompt_length:]
         generated_response = tokenizer.decode(output_tokens, skip_special_tokens=True)
-        colon_index = generated_response.find(":")
-        if colon_index > 0:
-            generated_response = generated_response[colon_index + 1 :].strip()
+        #colon_index = generated_response.find(":")
+        #if colon_index > 0:
+        #    generated_response = generated_response[colon_index + 1 :].strip()
         generated_responses.append(generated_response)
 
     return generated_responses
@@ -87,6 +87,9 @@ def generate_text_for_df(
     gen_prompt_fn: Callable = None,
     post_process_fn: Callable = None,
     batch_size: int = 1,
+    temperature: float = 0.7,
+    top_k: float = 0.92,
+    max_new_tokens: int = 200,
 ):
     src_col_values = []
     responses_list = []
@@ -99,13 +102,12 @@ def generate_text_for_df(
             else:
                 prompt = rec[src_col]
             prompts.append(prompt)
-        responses = generate_text(model, tokenizer, prompts)
+        responses = generate_text(model, tokenizer, prompts, temperature=temperature, top_k=top_k, max_new_tokens=max_new_tokens)
 
         for response in responses:
             if post_process_fn:
                 response = post_process_fn(response)
             responses_list.append(response)
-    print(responses_list)
     df[target_col] = responses_list
     return df
 

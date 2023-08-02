@@ -42,7 +42,7 @@ class ExtendedTrainingArguments:
         default="cosine",
     )
     warmup_steps: int = field(default=0)
-    weight_decay: Optional[int] = field(default=1)
+    weight_decay: Optional[float] = field(default=1)
     logging_strategy: Optional[Union[str, IntervalStrategy]] = field(
         default=IntervalStrategy.STEPS
     )
