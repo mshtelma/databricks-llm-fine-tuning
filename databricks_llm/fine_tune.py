@@ -6,6 +6,7 @@ import torch
 
 from datasets import Dataset, load_dataset
 
+from huggingface_hub import login
 
 from transformers import (
     AutoModelForCausalLM,
@@ -203,6 +204,10 @@ def main():
 
     parsed = parser.parse_args_into_dataclasses()
     args: ExtendedTrainingArguments = parsed[0]
+
+    if args.token is not None and len(args.token):
+      login(args.token)
+
 
     train(args)
 

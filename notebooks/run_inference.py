@@ -45,7 +45,7 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-13b-chat-hf"
+DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-7b-chat-hf"
 SUPPORTED_INPUT_MODELS = [
     "mosaicml/mpt-30b-instruct",
     "mosaicml/mpt-7b-instruct",
@@ -86,7 +86,7 @@ questions = [
 
 # COMMAND ----------
 
-model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, pretrained_name_or_path_tokenizer="meta-llama/Llama-2-13b-hf", inference=True)
+model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, pretrained_name_or_path_tokenizer=pretrained_name_or_path, inference=True)
 
 # COMMAND ----------
 
@@ -111,35 +111,3 @@ q_df = pd.DataFrame(data={"txt": questions}, columns=["txt"])
 
 res_df = generate_text_for_df(model, tokenizer, q_df, "txt", "gen_txt", batch_size=2, gen_prompt_fn=get_prompt_llama, post_process_fn=post_process, max_new_tokens=512, temperature=0.1)
 display(res_df)
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-# MAGIC %md # Generation using fine-tuned Llama v2 without any prompt
-
-# COMMAND ----------
-
-q_df = pd.DataFrame(data={"txt": questions}, columns=["txt"])
-
-res_df = generate_text_for_df(model, tokenizer, q_df, "txt", "gen_txt", batch_size=2, max_new_tokens=512, temperature=0.1)
-display(res_df)
-
-# COMMAND ----------
-
-# MAGIC %md # Generation using vanilla Llama v2 without any prompt
-
-# COMMAND ----------
-
-_model, _tokenizer = get_model_and_tokenizer("meta-llama/Llama-2-13b-hf", inference=True)
-
-q_df = pd.DataFrame(data={"txt": questions}, columns=["txt"])
-
-res_df = generate_text_for_df(_model, _tokenizer, q_df, "txt", "gen_txt", batch_size=2,  max_new_tokens=512, temperature=0.1)
-display(res_df)
-
-# COMMAND ----------
-
-

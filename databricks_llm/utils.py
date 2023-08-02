@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExtendedTrainingArguments:
     local_rank: Optional[str] = field(default="-1")
+    token: Optional[str] = field(default=None)
     number_of_tasks: Optional[int] = field(default=2)
     dataset: Optional[str] = field(default=None)
     model: Optional[str] = field(default=None)

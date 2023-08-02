@@ -79,13 +79,10 @@ if huggingface_token and len(huggingface_token)>3:
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 !cd .. && deepspeed \
 --num_gpus={num_gpus} \
 --module databricks_llm.fine_tune \
+--token="{huggingface_token}" \
 --final_model_output_path="{dbfs_output_location}" \
 --output_dir="/local_disk0/output" \
 --dataset={dataset} \
