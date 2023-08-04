@@ -30,9 +30,16 @@ dolly_ds = load_dataset("mosaicml/dolly_hhrlhf", split="train").map(process, rem
 
 # COMMAND ----------
 
+# MAGIC %sh mkdir -p /dbfs/msh/llm/datasets/slack_qa
+
+# COMMAND ----------
+
 from datasets import concatenate_datasets
 ds = concatenate_datasets([slack_ds, dolly_ds]).shuffle()
-ds.save_to_disk("/dbfs/llm/datasets/slack_qa")
+ds_dict = ds.train_test_split(test_size=0.1, shuffle=True)
+train_ds = ds_dict["train"]
+test_ds = ds_dict["test"]
+ds_dict.save_to_disk("/dbfs/msh/llm/datasets/slack_qa")
 
 # COMMAND ----------
 
