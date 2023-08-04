@@ -16,9 +16,11 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
+
 from huggingface_hub import notebook_login
 
 notebook_login()
+
 # COMMAND ----------
 
 import os
@@ -66,7 +68,9 @@ get_dbutils().widgets.combobox(
     SUPPORTED_INPUT_MODELS,
     "pretrained_name_or_path",
 )
+
 # COMMAND ----------
+
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 
 # COMMAND ----------
@@ -92,7 +96,6 @@ model, tokenizer = get_model_and_tokenizer(
 # MAGIC %md # Generation using fine-tuned Llama v2  & Llama v2 Prompt Structure
 
 # COMMAND ----------
-
 
 def get_prompt_llama(query: str) -> str:
     return f"""<s>[INST] <<SYS>>You are a helpful, respectful, and honest assistant. Your answers should not include any harmful, racist, sexist, or illegal content. If you don't know the answer to a question, avoid sharing false information.<</SYS>>{query} [/INST]###"""

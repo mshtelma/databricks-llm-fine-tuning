@@ -50,7 +50,7 @@ distributor.run(train_file, *args)
 
 # COMMAND ----------
 
-# MAGIC !ls -lah {dbfs_output_location}
+!ls -lah {dbfs_output_location}
 
 # COMMAND ----------
 
@@ -62,7 +62,6 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
-
 
 class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
