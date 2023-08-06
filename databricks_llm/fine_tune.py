@@ -4,7 +4,7 @@ import logging
 import os
 import torch
 
-from datasets import Dataset, load_dataset, load_from_disk
+from datasets import Dataset, load_dataset, load_from_disk, DatasetDict
 
 from huggingface_hub import login
 
@@ -32,9 +32,11 @@ def load_training_dataset(
 ) -> Dataset:
     logger.info(f"Loading dataset from {path_or_dataset}")
     if path_or_dataset.startswith("/"):
-      dataset = load_from_disk(path_or_dataset)
+        dataset = load_from_disk(path_or_dataset)
+        if isinstance(dataset, DatasetDict):
+            dataset = dataset[split]
     else:
-      dataset = load_dataset(path_or_dataset, split=split)
+        dataset = load_dataset(path_or_dataset, split=split)
     logger.info("Found %d rows", dataset.num_rows)
 
     use_formatting_func = formatting_func is not None and dataset_text_field is None
@@ -49,7 +51,7 @@ def load_training_dataset(
             if not use_formatting_func
             else formatting_func(element),
             truncation=True,
-            padding=True,
+            padding=False,
             max_length=max_seq_len,
             return_overflowing_tokens=False,
             return_length=True,
@@ -203,7 +205,8 @@ def train(args: ExtendedTrainingArguments):
 
 
 def main():
-    import pathlib 
+    import pathlib
+
     parser = HfArgumentParser(ExtendedTrainingArguments)
 
     parsed = parser.parse_args_into_dataclasses()
@@ -212,8 +215,7 @@ def main():
     if args.token is not None and len(args.token):
         login(args.token)
     elif pathlib.Path("/root/.cache/huggingface/token").exists():
-      login(pathlib.Path("/root/.cache/huggingface/token").read_text())
-    
+        login(pathlib.Path("/root/.cache/huggingface/token").read_text())
 
     train(args)
 
