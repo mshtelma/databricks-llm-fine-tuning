@@ -22,11 +22,23 @@ notebook_login()
 # COMMAND ----------
 
 from datasets import load_dataset
-stack_ds = load_dataset("bigcode/the-stack-dedup",  data_dir="data/abap").select_columns(["content"])
+stack_ds = load_dataset("bigcode/the-stack-dedup",  data_dir="data/abap").select_columns(["content"]).rename_column("content", "text")
+
+
+# COMMAND ----------
+
+stack_ds = stack_ds["train"].shuffle().train_test_split(test_size=0.05)
+stack_ds
 
 # COMMAND ----------
 
 stack_ds.save_to_disk("/dbfs/msh/llm/datasets/the_stack_abap")
+
+# COMMAND ----------
+
+from datasets import Dataset, DatasetDict
+
+DatasetDict.load_from_disk("/dbfs/msh/llm/datasets/the_stack_abap")
 
 # COMMAND ----------
 
