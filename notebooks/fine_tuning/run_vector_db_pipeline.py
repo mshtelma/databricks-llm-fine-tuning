@@ -4,7 +4,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -r ../requirements.txt
+# MAGIC %pip install -r ../../requirements.txt
 # COMMAND ----------
 
 # MAGIC %load_ext autoreload

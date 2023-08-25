@@ -4,7 +4,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -r ../requirements.txt
+# MAGIC %pip install -r ../../requirements.txt
 # COMMAND ----------
 
 # MAGIC %pip install pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python

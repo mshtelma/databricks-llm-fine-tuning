@@ -3,7 +3,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -r ../requirements.txt
+# MAGIC %pip install -r ../../requirements.txt
 
 # COMMAND ----------
 
@@ -86,7 +86,7 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 # MAGIC --tokenizer={pretrained_name_or_path} \
 # MAGIC --use_lora=false \
 # MAGIC --use_4bit=false \
-# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+# MAGIC --deepspeed_config="../../ds_configs/ds_zero_3_cpu_offloading.json" \
 # MAGIC --fp16=false \
 # MAGIC --bf16=true \
 # MAGIC --per_device_train_batch_size=24 \
