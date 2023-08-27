@@ -79,14 +79,11 @@ print(pretrained_name_or_path)
 
 questions = [
     " The coffee shop 'The Wrestlers' is located on the riverside, near 'Raja Indian Cuisine'. They serve English food and a price range of less than £20, and are not family-friendly. ",
-    " Fitzbillies on the riverside is a highly rated kid friendly coffee shop that offers English food with average prices. ",
     " Cotto is an inexpensive English restaurant near The Portland Arms in the city centre, and provides English coffee shop food. Customers recently rated the store 5 out of 5. ",
     " The Eagle coffee shops Chinese food, moderately priced, customer rating 1 out of 5, located city centre, kid friendly, located near Burger King. ",
     " The Punter is a child friendly establishment located by the riverside with a customer rating of 1 out of 5. ",
     " Taste of Cambridge, a coffee shop specializing in English eatery, is located in riverside near Crowne Plaza Hotel and is known to be very kid friendly. ",
-    " Taste of Cambridge is a coffee shop providing Chinese food It is located in the city centre. It is near Crowne Plaza Hotel. ",
     " The Punter is an expensive Chinese coffee shop located near Café Sicilia. ",
-    " Fitzbillies  is a moderate price range coffee shop by the riverside  that serves English food, is kid friendly and has a customer rating of 1 out of 5. ",
     " Clowns is a coffee shop that severs English food. Clowns is located in Riverside near Clare Hall. Clowns customer service ratings are low. ",
 ]
 
@@ -128,7 +125,7 @@ res_df = generate_text_for_df(
     gen_prompt_fn=get_prompt_llama,
     post_process_fn=post_process,
     max_new_tokens=64,
-    temperature=0.2,
+    temperature=0,
 )
 display(res_df)
 
