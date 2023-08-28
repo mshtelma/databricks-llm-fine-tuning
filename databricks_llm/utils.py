@@ -1,6 +1,9 @@
+import functools
+import pathlib
 from dataclasses import field, dataclass
 import logging
 from typing import Optional, Union
+import shutil
 
 
 from transformers import (
@@ -57,3 +60,78 @@ class ExtendedTrainingArguments:
     bf16: Optional[bool] = field(default=True)
     save_steps: Optional[int] = field(default=100)
     logging_steps: Optional[int] = field(default=10)
+
+
+def _mount(it):
+    for _ in it:
+        import pandas as pd
+        import subprocess
+        import pathlib
+
+        ls_cmd = "touch /dev/shm/test && ls /dev/shm"
+        res = ""
+
+        if not (pathlib.Path("/dev/shm").exists()) or not (
+            pathlib.Path("/dev/shm").is_dir()
+        ):
+            cmd = (
+                "mkdir /local_disk0/devshm && mount --bind /dev/shm /local_disk0/devshm && "
+                + ls_cmd
+            )
+
+            s = subprocess.run(cmd)
+            res = s.stdout
+        yield pd.DataFrame(data={"res": [res]})
+
+
+def get_spark():
+    import IPython
+
+    return IPython.get_ipython().user_ns["spark"]
+
+
+def _num_executors():
+    return get_spark().sparkContext._jsc.sc().getExecutorMemoryStatus().keySet().size()
+
+
+def _prepare_df_for_all_executors():
+    num_executors = _num_executors()
+    input_df = get_spark().range(
+        start=0, end=num_executors, step=1, numPartitions=num_executors
+    )
+    return input_df
+
+
+def check_mount_dev_shm():
+    input_df = _prepare_df_for_all_executors()
+    p_df = input_df.mapInPandas(
+        func=_mount, schema="res string", barrier=True
+    ).toPandas()
+    display(p_df)
+
+
+def copy_source_code(dest: str):
+    src = (pathlib.Path.cwd() / ".." / "databricks_llm").resolve()
+    dest = (pathlib.Path(dest) / "databricks_llm").resolve()
+    dest.touch(exist_ok=True)
+    shutil.copytree(str(src), str(dest), dirs_exist_ok=True)
+
+
+def hf_login(it, token_file: str = ""):
+    import pandas as pd
+
+    for _ in it:
+        with open("/root/.cache/huggingface/token", "w") as f:
+            f.write(token_file)
+        yield pd.DataFrame(data={"res": ["OK"]})
+
+
+def remote_login():
+    if pathlib.Path("/root/.cache/huggingface/token").exists():
+        token = pathlib.Path("/root/.cache/huggingface/token").read_text()
+        input_df = _prepare_df_for_all_executors()
+        _f = functools.partial(hf_login, token_file=token)
+        p_df = input_df.mapInPandas(
+            func=_f, schema="res string", barrier=True
+        ).toPandas()
+        display(p_df)

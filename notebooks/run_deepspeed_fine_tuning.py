@@ -81,50 +81,42 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 
 # COMMAND ----------
 
-!mkdir -p {dbfs_output_location}
+# MAGIC !mkdir -p {dbfs_output_location}
 
 # COMMAND ----------
 
-!cp -r /dbfs/msh/llm/datasets/e2e_nlg /local_disk0/ds
+# MAGIC  !cd .. && deepspeed \
+# MAGIC --num_gpus="{num_gpus}" \
+# MAGIC --module databricks_llm.fine_tune \
+# MAGIC --final_model_output_path="{dbfs_output_location}" \
+# MAGIC --output_dir="/local_disk0/output" \
+# MAGIC --dataset={dataset} \
+# MAGIC --model={pretrained_name_or_path} \
+# MAGIC --tokenizer={pretrained_name_or_path} \
+# MAGIC --use_lora=false \
+# MAGIC --use_4bit=false \
+# MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
+# MAGIC --fp16=false \
+# MAGIC --bf16=true \
+# MAGIC --per_device_train_batch_size=16 \
+# MAGIC --per_device_eval_batch_size=48 \
+# MAGIC --gradient_checkpointing=true \
+# MAGIC --gradient_accumulation_steps=1 \
+# MAGIC --learning_rate=5e-6 \
+# MAGIC --adam_beta1=0.9 \
+# MAGIC --adam_beta2=0.999 \
+# MAGIC --adam_epsilon=1e-8 \
+# MAGIC --lr_scheduler_type="cosine" \
+# MAGIC --warmup_steps=100 \
+# MAGIC --weight_decay=0.0 \
+# MAGIC --evaluation_strategy="steps" \
+# MAGIC --save_strategy="steps" \
+# MAGIC --save_steps=100 \
+# MAGIC --num_train_epochs=1
 
 # COMMAND ----------
 
-!ls /local_disk0/ds
-
-# COMMAND ----------
-
-!cd .. && deepspeed \
---num_gpus="{num_gpus}" \
---module databricks_llm.fine_tune \
---final_model_output_path="{dbfs_output_location}" \
---output_dir="/local_disk0/output" \
---dataset=/local_disk0/ds \
---model={pretrained_name_or_path} \
---tokenizer={pretrained_name_or_path} \
---use_lora=false \
---use_4bit=false \
---deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
---fp16=false \
---bf16=true \
---per_device_train_batch_size=16 \
---per_device_eval_batch_size=48 \
---gradient_checkpointing=true \
---gradient_accumulation_steps=1 \
---learning_rate=5e-6 \
---adam_beta1=0.9 \
---adam_beta2=0.999 \
---adam_epsilon=1e-8 \
---lr_scheduler_type="cosine" \
---warmup_steps=100 \
---weight_decay=0.0 \
---evaluation_strategy="steps" \
---save_strategy="steps" \
---save_steps=100 \
---num_train_epochs=1
-
-# COMMAND ----------
-
-!ls -lah {dbfs_output_location}
+# MAGIC !ls -lah {dbfs_output_location}
 
 # COMMAND ----------
 
@@ -140,6 +132,7 @@ import torch
 print(torch.__version__)
 
 # COMMAND ----------
+
 
 class LLMPyFuncModel(mlflow.pyfunc.PythonModel):
     def __init__(
@@ -208,6 +201,7 @@ class LLMPyFuncModel(mlflow.pyfunc.PythonModel):
         )
 
         return generated_response
+
 
 # COMMAND ----------
 

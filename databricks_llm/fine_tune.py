@@ -26,8 +26,8 @@ def load_training_dataset(
     tokenizer,
     path_or_dataset: str,
     split: str,
-    dataset_text_field: str="text",
-    max_seq_len:int=512,
+    dataset_text_field: str = "text",
+    max_seq_len: int = 512,
     formatting_func=None,
 ) -> Dataset:
     logger.info(f"Loading dataset from {path_or_dataset}")
@@ -35,10 +35,14 @@ def load_training_dataset(
         dataset = load_from_disk(path_or_dataset)
         if isinstance(dataset, DatasetDict):
             dataset = dataset[split]
-            print(f"Loaded dataset {path_or_dataset} from disk for split {split} with {len(dataset)} rows.")
+            print(
+                f"Loaded dataset {path_or_dataset} from disk for split {split} with {len(dataset)} rows."
+            )
     else:
         dataset = load_dataset(path_or_dataset, split=split)
-        print(f"Loaded dataset {path_or_dataset} from HF Hub for split {split} with {len(dataset)} rows.")
+        print(
+            f"Loaded dataset {path_or_dataset} from HF Hub for split {split} with {len(dataset)} rows."
+        )
     logger.info("Found %d rows", dataset.num_rows)
     logger.info("Found %d rows", len(dataset))
 
@@ -63,18 +67,17 @@ def load_training_dataset(
         for length, input_ids, attention_mask in zip(
             outputs["length"], outputs["input_ids"], outputs["attention_mask"]
         ):
-            #if length == max_seq_len:
+            # if length == max_seq_len:
             input_batch.append(input_ids)
             attention_masks.append(attention_mask)
 
         return {"input_ids": input_batch, "attention_mask": attention_masks}
 
     tokenized_dataset = dataset.map(
-        tokenize,  batched=True, remove_columns=dataset.column_names
+        tokenize, batched=True, remove_columns=dataset.column_names
     )
 
     print(len(tokenized_dataset))
-
 
     return tokenized_dataset
 
@@ -230,6 +233,8 @@ if __name__ == "__main__":
     os.environ["HF_HOME"] = "/local_disk0/hf"
     os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
     os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+    os.environ["NCCL_P2P_DISABLE"] = "1"
+    os.environ["NCCL_DEBUG"] = "INFO"
 
     logging.basicConfig(
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",

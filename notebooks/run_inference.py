@@ -101,6 +101,7 @@ model, tokenizer = get_model_and_tokenizer(
 
 # COMMAND ----------
 
+
 def get_prompt_llama(query: str) -> str:
     return f"""<s>[INST] <<SYS>>Extract entities from the text below.<</SYS>> {query} [/INST] """
 
@@ -110,6 +111,7 @@ def post_process(s: str) -> str:
     if _idx > 0:
         s = s[_idx + len("[/INST]") :].strip()
     return s.replace("[inst}", "")
+
 
 # COMMAND ----------
 
@@ -130,5 +132,3 @@ res_df = generate_text_for_df(
 display(res_df)
 
 # COMMAND ----------
-
-
