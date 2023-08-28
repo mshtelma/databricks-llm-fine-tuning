@@ -4,8 +4,9 @@ import logging
 import os
 import torch
 
-from datasets import Dataset, load_dataset
+from datasets import Dataset, load_dataset, load_from_disk, DatasetDict
 
+from huggingface_hub import login
 
 from transformers import (
     AutoModelForCausalLM,
@@ -25,13 +26,25 @@ def load_training_dataset(
     tokenizer,
     path_or_dataset: str,
     split: str,
-    dataset_text_field: str,
-    max_seq_len,
+    dataset_text_field: str = "text",
+    max_seq_len: int = 512,
     formatting_func=None,
 ) -> Dataset:
     logger.info(f"Loading dataset from {path_or_dataset}")
-    dataset = load_dataset(path_or_dataset, split=split)
+    if path_or_dataset.startswith("/"):
+        dataset = load_from_disk(path_or_dataset)
+        if isinstance(dataset, DatasetDict):
+            dataset = dataset[split]
+            print(
+                f"Loaded dataset {path_or_dataset} from disk for split {split} with {len(dataset)} rows."
+            )
+    else:
+        dataset = load_dataset(path_or_dataset, split=split)
+        print(
+            f"Loaded dataset {path_or_dataset} from HF Hub for split {split} with {len(dataset)} rows."
+        )
     logger.info("Found %d rows", dataset.num_rows)
+    logger.info("Found %d rows", len(dataset))
 
     use_formatting_func = formatting_func is not None and dataset_text_field is None
 
@@ -54,15 +67,17 @@ def load_training_dataset(
         for length, input_ids, attention_mask in zip(
             outputs["length"], outputs["input_ids"], outputs["attention_mask"]
         ):
-            if length == max_seq_len:
-                input_batch.append(input_ids)
-                attention_masks.append(attention_mask)
+            # if length == max_seq_len:
+            input_batch.append(input_ids)
+            attention_masks.append(attention_mask)
 
         return {"input_ids": input_batch, "attention_mask": attention_masks}
 
     tokenized_dataset = dataset.map(
         tokenize, batched=True, remove_columns=dataset.column_names
     )
+
+    print(len(tokenized_dataset))
 
     return tokenized_dataset
 
@@ -83,6 +98,11 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         optim=args.optim,
         num_train_epochs=args.num_train_epochs,
         max_steps=args.max_steps,
+        adam_beta1=args.adam_beta1,
+        adam_beta2=args.adam_beta2,
+        adam_epsilon=args.adam_epsilon,
+        lr_scheduler_type=args.lr_scheduler_type,
+        warmup_steps=args.warmup_steps,
         weight_decay=args.weight_decay,
         logging_strategy=args.logging_strategy,
         evaluation_strategy=args.evaluation_strategy,
@@ -94,12 +114,15 @@ def setup_hf_trainer(train_dataset, eval_dataset=None, **config) -> Trainer:
         logging_steps=args.logging_steps,
         push_to_hub=False,
         disable_tqdm=True,
-        report_to=[],
+        report_to=["tensorboard"],
         # group_by_length=True,
         ddp_find_unused_parameters=False,
+        # fsdp=["full_shard", "offload"],
     )
 
-    model, tokenizer = get_model_and_tokenizer(args.model, args.use_4bit, args.use_lora)
+    model, tokenizer = get_model_and_tokenizer(
+        args.model, use_4bit=args.use_4bit, load_in_8bit=False, use_lora=args.use_lora
+    )
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     trainer = Trainer(
@@ -175,8 +198,11 @@ def train(args: ExtendedTrainingArguments):
     eval_dataset = load_training_dataset(
         tokenizer, args.dataset, "test", "text", 256, formatting_func=None
     )
-    with open(args.deepspeed_config) as json_data:
-        deepspeed_config_dict = json.load(json_data)
+    if args.deepspeed_config:
+        with open(args.deepspeed_config) as json_data:
+            deepspeed_config_dict = json.load(json_data)
+    else:
+        deepspeed_config_dict = None
     trainer = setup_hf_trainer(
         train_dataset,
         eval_dataset,
@@ -188,10 +214,17 @@ def train(args: ExtendedTrainingArguments):
 
 
 def main():
+    import pathlib
+
     parser = HfArgumentParser(ExtendedTrainingArguments)
 
     parsed = parser.parse_args_into_dataclasses()
     args: ExtendedTrainingArguments = parsed[0]
+
+    if args.token is not None and len(args.token):
+        login(args.token)
+    elif pathlib.Path("/root/.cache/huggingface/token").exists():
+        login(pathlib.Path("/root/.cache/huggingface/token").read_text())
 
     train(args)
 
@@ -200,6 +233,8 @@ if __name__ == "__main__":
     os.environ["HF_HOME"] = "/local_disk0/hf"
     os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
     os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+    os.environ["NCCL_P2P_DISABLE"] = "1"
+    os.environ["NCCL_DEBUG"] = "INFO"
 
     logging.basicConfig(
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",

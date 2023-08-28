@@ -1,28 +1,35 @@
 # Databricks notebook source
-# MAGIC !wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb -O /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcublas-dev-11-7_11.10.1.25-1_amd64.deb -O /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb -O /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/libcurand-dev-11-7_10.2.10.91-1_amd64.deb -O /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusparse-dev-11-7_11.7.3.50-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcublas-dev-11-7_11.10.1.25-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcusolver-dev-11-7_11.4.0.1-1_amd64.deb && \
-# MAGIC   dpkg -i /tmp/libcurand-dev-11-7_10.2.10.91-1_amd64.deb
-
-
-# COMMAND ----------
-
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
 
 # MAGIC %pip install -r ../requirements.txt
+
 # COMMAND ----------
 
-# MAGIC %pip install pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python
+# MAGIC %pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python
+
 # COMMAND ----------
 
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
+
+# COMMAND ----------
+
+from huggingface_hub import notebook_login, login
+
+# notebook_login()
+
+login(token="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")
+
+# COMMAND ----------
+
+import os
+
+os.environ["HF_HOME"] = "/local_disk0/hf"
+os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
+os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+
 # COMMAND ----------
 
 import logging
@@ -36,38 +43,92 @@ logging.basicConfig(
 )
 logging.getLogger("py4j").setLevel(logging.WARNING)
 logging.getLogger("sh.command").setLevel(logging.ERROR)
+
 # COMMAND ----------
+
 from databricks_llm.inference import generate_text, generate_text_for_df
 from databricks_llm.model_utils import get_model_and_tokenizer
 from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
-DEFAULT_INPUT_MODEL = "mosaicml/mpt-7b-instruct"
-SUPPORTED_INPUT_MODELS = ["mosaicml/mpt-30b-instruct", "mosaicml/mpt-7b-instruct"]
+
+DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-7b-chat-hf"
+SUPPORTED_INPUT_MODELS = [
+    "mosaicml/mpt-30b-instruct",
+    "mosaicml/mpt-7b-instruct",
+    "meta-llama/Llama-2-7b-chat-hf",
+    "meta-llama/Llama-2-13b-chat-hf",
+    "meta-llama/Llama-2-70b-chat-hf",
+]
+
 # COMMAND ----------
-# get_dbutils().widgets.text("num_gpus", "4", "num_gpus")
+
 get_dbutils().widgets.combobox(
     "pretrained_name_or_path",
     DEFAULT_INPUT_MODEL,
     SUPPORTED_INPUT_MODELS,
     "pretrained_name_or_path",
 )
+
 # COMMAND ----------
-questions = [
-    "Write a love letter to Edgar Allan Poe",
-    "Write a tweet announcing a new language model called Dolly from Databricks",
-]
-# COMMAND ----------
+
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
-model, tokenizer = get_model_and_tokenizer(pretrained_name_or_path, inference=True)
+print(pretrained_name_or_path)
+
 # COMMAND ----------
 
-results = generate_text(model, tokenizer, questions)
-for result in results:
-    print(result)
-# COMMAND ----------
-q = questions + questions + questions + questions
-q_df = pd.DataFrame(data={"txt": q}, columns=["txt"])
+questions = [
+    " The coffee shop 'The Wrestlers' is located on the riverside, near 'Raja Indian Cuisine'. They serve English food and a price range of less than £20, and are not family-friendly. ",
+    " Cotto is an inexpensive English restaurant near The Portland Arms in the city centre, and provides English coffee shop food. Customers recently rated the store 5 out of 5. ",
+    " The Eagle coffee shops Chinese food, moderately priced, customer rating 1 out of 5, located city centre, kid friendly, located near Burger King. ",
+    " The Punter is a child friendly establishment located by the riverside with a customer rating of 1 out of 5. ",
+    " Taste of Cambridge, a coffee shop specializing in English eatery, is located in riverside near Crowne Plaza Hotel and is known to be very kid friendly. ",
+    " The Punter is an expensive Chinese coffee shop located near Café Sicilia. ",
+    " Clowns is a coffee shop that severs English food. Clowns is located in Riverside near Clare Hall. Clowns customer service ratings are low. ",
+]
 
-res_df = generate_text_for_df(model, tokenizer, q_df, "txt", "gen_txt", batch_size=2)
+# COMMAND ----------
+
+model, tokenizer = get_model_and_tokenizer(
+    pretrained_name_or_path,
+    pretrained_name_or_path_tokenizer="meta-llama/Llama-2-13b-chat-hf",
+    inference=True,
+)
+
+# COMMAND ----------
+
+# MAGIC %md # Generation using fine-tuned Llama v2  & Llama v2 Prompt Structure
+
+# COMMAND ----------
+
+
+def get_prompt_llama(query: str) -> str:
+    return f"""<s>[INST] <<SYS>>Extract entities from the text below.<</SYS>> {query} [/INST] """
+
+
+def post_process(s: str) -> str:
+    _idx = s.find("[/INST]")
+    if _idx > 0:
+        s = s[_idx + len("[/INST]") :].strip()
+    return s.replace("[inst}", "")
+
+
+# COMMAND ----------
+
+q_df = pd.DataFrame(data={"txt": questions}, columns=["txt"])
+
+res_df = generate_text_for_df(
+    model,
+    tokenizer,
+    q_df,
+    "txt",
+    "gen_txt",
+    batch_size=20,
+    gen_prompt_fn=get_prompt_llama,
+    post_process_fn=post_process,
+    max_new_tokens=64,
+    temperature=0,
+)
 display(res_df)
+
+# COMMAND ----------
