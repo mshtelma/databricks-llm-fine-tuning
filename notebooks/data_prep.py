@@ -62,18 +62,3 @@ ds = load_from_disk("/dbfs/msh/llm/datasets/e2e_nlg")["train"].shuffle()
 it = iter(ds)
 for _ in range(10):
     print("'", next(it)["human_reference"], "',")
-
-# COMMAND ----------
-
-from datasets import concatenate_datasets
-
-ds = concatenate_datasets([slack_ds, dolly_ds]).shuffle()
-ds_dict = ds.train_test_split(test_size=0.1, shuffle=True)
-train_ds = ds_dict["train"]
-test_ds = ds_dict["test"]
-ds_dict.save_to_disk("/dbfs/msh/llm/datasets/slack_qa")
-
-# COMMAND ----------
-
-for i in Dataset.load_from_disk("/dbfs/llm/datasets/slack_qa"):
-    print(i)
