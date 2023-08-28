@@ -15,7 +15,6 @@
 from huggingface_hub import notebook_login
 from huggingface_hub import login
 
-login(token="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")
 # notebook_login()
 
 # COMMAND ----------
