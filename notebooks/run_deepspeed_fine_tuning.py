@@ -11,9 +11,7 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
-
-from huggingface_hub import notebook_login
-from huggingface_hub import login
+from huggingface_hub import notebook_login, login
 
 # notebook_login()
 
