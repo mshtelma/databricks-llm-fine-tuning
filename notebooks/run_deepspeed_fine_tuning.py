@@ -11,9 +11,13 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
-from huggingface_hub import notebook_login
 
-notebook_login()
+from huggingface_hub import notebook_login
+from huggingface_hub import login
+
+login(token="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")
+# notebook_login()
+
 # COMMAND ----------
 
 import os
@@ -21,8 +25,8 @@ import os
 os.environ["HF_HOME"] = "/local_disk0/hf"
 os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
 os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
-# os.environ["NCCL_P2P_DISABLE"] = "1"
-# os.environ["NCCL_DEBUG"] = "INFO"
+os.environ["NCCL_P2P_DISABLE"] = "1"
+os.environ["NCCL_DEBUG"] = "INFO"
 
 # COMMAND ----------
 
@@ -33,7 +37,7 @@ logging.basicConfig(
     level=logging.INFO,
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logging.getLogger("py4j").setLevel(logging.WARNING)
+logging.getLogger("py4j").setLevel(logging.ERROR)
 logging.getLogger("sh.command").setLevel(logging.ERROR)
 
 # COMMAND ----------
@@ -42,18 +46,19 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-13b-chat-hf"
+DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-7b-chat-hf"
 SUPPORTED_INPUT_MODELS = [
     "mosaicml/mpt-30b-instruct",
     "mosaicml/mpt-7b-instruct",
     "meta-llama/Llama-2-13b-chat-hf",
     "tiiuae/falcon-7b-instruct",
     "tiiuae/falcon-40b-instruct",
+    "HuggingFaceH4/starchat-beta",
 ]
 
 # COMMAND ----------
 
-get_dbutils().widgets.text("num_gpus", "8", "num_gpus")
+get_dbutils().widgets.text("num_gpus", "4", "num_gpus")
 get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
 get_dbutils().widgets.combobox(
     "pretrained_name_or_path",
@@ -68,6 +73,7 @@ get_dbutils().widgets.text(
 )
 
 # COMMAND ----------
+
 num_gpus = get_dbutils().widgets.get("num_gpus")
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
 dataset = get_dbutils().widgets.get("dataset")
@@ -75,10 +81,13 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 
 # COMMAND ----------
 
-# MAGIC !cd .. && deepspeed \
-# MAGIC --num_gpus={num_gpus} \
+# MAGIC !mkdir -p {dbfs_output_location}
+
+# COMMAND ----------
+
+# MAGIC  !cd .. && deepspeed \
+# MAGIC --num_gpus="{num_gpus}" \
 # MAGIC --module databricks_llm.fine_tune \
-# MAGIC --token="{huggingface_token}" \
 # MAGIC --final_model_output_path="{dbfs_output_location}" \
 # MAGIC --output_dir="/local_disk0/output" \
 # MAGIC --dataset={dataset} \
@@ -89,25 +98,29 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 # MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
 # MAGIC --fp16=false \
 # MAGIC --bf16=true \
-# MAGIC --per_device_train_batch_size=24 \
-# MAGIC --per_device_eval_batch_size=24 \
+# MAGIC --per_device_train_batch_size=16 \
+# MAGIC --per_device_eval_batch_size=48 \
 # MAGIC --gradient_checkpointing=true \
 # MAGIC --gradient_accumulation_steps=1 \
-# MAGIC --learning_rate=3e-4 \
+# MAGIC --learning_rate=5e-6 \
 # MAGIC --adam_beta1=0.9 \
-# MAGIC --adam_beta2=0.95 \
-# MAGIC --adam_epsilon=1e-4 \
+# MAGIC --adam_beta2=0.999 \
+# MAGIC --adam_epsilon=1e-8 \
 # MAGIC --lr_scheduler_type="cosine" \
-# MAGIC --warmup_steps=5 \
-# MAGIC --weight_decay=0.1 \
+# MAGIC --warmup_steps=100 \
+# MAGIC --weight_decay=0.0 \
 # MAGIC --evaluation_strategy="steps" \
 # MAGIC --save_strategy="steps" \
-# MAGIC --save_steps=5 \
+# MAGIC --save_steps=100 \
 # MAGIC --num_train_epochs=1
 
 # COMMAND ----------
 
 # MAGIC !ls -lah {dbfs_output_location}
+
+# COMMAND ----------
+
+print(dbfs_output_location)
 
 # COMMAND ----------
 
@@ -121,7 +134,12 @@ print(torch.__version__)
 # COMMAND ----------
 
 
-class FalconPyFuncModel(mlflow.pyfunc.PythonModel):
+class LLMPyFuncModel(mlflow.pyfunc.PythonModel):
+    def __init__(
+        self,
+    ):
+        pass
+
     def load_context(self, context):
         """
         This method initializes the tokenizer and language model
@@ -210,7 +228,7 @@ input_example = pd.DataFrame(
 with mlflow.start_run() as run:
     mlflow.pyfunc.log_model(
         "model",
-        python_model=FalconPyFuncModel(),
+        python_model=LLMPyFuncModel(),
         artifacts={"repository": dbfs_output_location},
         pip_requirements=[
             "torch==2.0.1",
@@ -222,7 +240,6 @@ with mlflow.start_run() as run:
         input_example=input_example,
         signature=signature,
     )
-
 
 # COMMAND ----------
 

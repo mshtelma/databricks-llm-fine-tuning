@@ -51,11 +51,12 @@ def generate_text(
             use_cache=True,
             input_ids=batch.input_ids,
             max_new_tokens=max_new_tokens,
+            min_new_tokens=10,
             temperature=temperature,
             top_p=top_k,
             num_return_sequences=1,
             pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id,
+            eos_token_id=tokenizer.encode("[/INST]"),
         )
 
     generated_responses = []

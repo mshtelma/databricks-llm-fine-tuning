@@ -1,5 +1,4 @@
 # Databricks notebook source
-# MAGIC
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
@@ -8,27 +7,114 @@
 
 # COMMAND ----------
 
-dbfs_output_location = "/dbfs/llm/falcon_7b_oas_guanac_v2"
+# MAGIC %load_ext autoreload
+# MAGIC %autoreload 2
 
 # COMMAND ----------
+
+from huggingface_hub import notebook_login, login
+
+# notebook_login()
+
+# COMMAND ----------
+
+import os
+
+os.environ["HF_HOME"] = "/local_disk0/hf"
+os.environ["HF_DATASETS_CACHE"] = "/local_disk0/hf"
+os.environ["TRANSFORMERS_CACHE"] = "/local_disk0/hf"
+os.environ["NCCL_P2P_DISABLE"] = "1"
+os.environ["NCCL_DEBUG"] = "INFO"
+
+# COMMAND ----------
+
+import logging
+
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    level=logging.INFO,
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logging.getLogger("py4j").setLevel(logging.WARNING)
+logging.getLogger("sh.command").setLevel(logging.ERROR)
+
+# COMMAND ----------
+
+from databricks_llm.notebook_utils import get_dbutils
+from databricks_llm.utils import copy_source_code, remote_login
+
+# COMMAND ----------
+
+DEFAULT_INPUT_MODEL = "mosaicml/mpt-30b-instruct"
+SUPPORTED_INPUT_MODELS = [
+    "mosaicml/mpt-30b-instruct",
+    "mosaicml/mpt-7b-instruct",
+    "meta-llama/Llama-2-7b-chat-hf",
+    "meta-llama/Llama-2-13b-chat-hf",
+    "meta-llama/Llama-2-70b-chat-hf",
+    "meta-llama/Llama-2-7b-hf",
+    "meta-llama/Llama-2-13b-hf",
+    "meta-llama/Llama-2-70b-hf",
+    "codellama/CodeLlama-7b-hf",
+    "codellama/CodeLlama-13b-hf",
+    "codellama/CodeLlama-34b-hf",
+    "codellama/CodeLlama-7b-Instruct-hf",
+    "codellama/CodeLlama-13b-Instruct-hf",
+    "codellama/CodeLlama-34b-Instruct-hf",
+    "tiiuae/falcon-7b-instruct",
+    "tiiuae/falcon-40b-instruct",
+    "HuggingFaceH4/starchat-beta",
+]
+
+# COMMAND ----------
+
+get_dbutils().widgets.text("num_gpus", "8", "num_gpus")
+get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
+get_dbutils().widgets.text("dbfs_source_root", "/dbfs/llm/source", "dbfs_source_root")
+get_dbutils().widgets.combobox(
+    "pretrained_name_or_path",
+    DEFAULT_INPUT_MODEL,
+    SUPPORTED_INPUT_MODELS,
+    "pretrained_name_or_path",
+)
+get_dbutils().widgets.text(
+    "dataset",
+    "mlabonne/guanaco-llama2",
+    "dataset",
+)
+
+# COMMAND ----------
+
+num_gpus = get_dbutils().widgets.get("num_gpus")
+pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
+dataset = get_dbutils().widgets.get("dataset")
+dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
+dbfs_source_root = get_dbutils().widgets.get("dbfs_source_root")
+# COMMAND ----------
+copy_source_code(dbfs_source_root)
+remote_login()
+# COMMAND ----------
+# MAGIC !cd {dbfs_source_root} && pip install -e .
+# COMMAND ----------
+
 
 import pathlib
 from pyspark.ml.torch.distributor import TorchDistributor
 
-curr_dir = pathlib.Path.cwd()
+curr_dir = pathlib.Path(dbfs_source_root)
 
-train_file = str(curr_dir / "fine_tune.py")
+train_file = str(curr_dir / "databricks_llm" / "fine_tune.py")
 print(train_file)
 deepspeed_config = str(
-    (curr_dir / ".." / "ds_configs" / "ds_zero_3_cpu_offloading.json").resolve()
+    (curr_dir / "ds_configs" / "ds_zero_3_cpu_offloading.json").resolve()
 )
 print(deepspeed_config)
 args = [
     f"--final_model_output_path={dbfs_output_location}",
     "--output_dir=/local_disk0/output",
-    "--dataset=timdettmers/openassistant-guanaco",
-    "--model=tiiuae/falcon-7b",
-    "--tokenizer=tiiuae/falcon-7b",
+    f"--dataset={dataset}",
+    f"--model={pretrained_name_or_path}",
+    f"--tokenizer={pretrained_name_or_path}",
     "--use_lora=false",
     "--use_4bit=false",
     f"--deepspeed_config={deepspeed_config}",
@@ -45,7 +131,9 @@ args = [
     "--save_steps=20",
     "--num_train_epochs=1",
 ]
-distributor = TorchDistributor(num_processes=8, local_mode=False, use_gpu=True)
+distributor = TorchDistributor(
+    num_processes=int(num_gpus), local_mode=False, use_gpu=True
+)
 distributor.run(train_file, *args)
 
 # COMMAND ----------

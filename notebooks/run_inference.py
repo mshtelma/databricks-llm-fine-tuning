@@ -1,5 +1,4 @@
 # Databricks notebook source
-# MAGIC
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
@@ -16,9 +15,13 @@
 # MAGIC %autoreload 2
 
 # COMMAND ----------
-from huggingface_hub import notebook_login
 
-notebook_login()
+from huggingface_hub import notebook_login, login
+
+# notebook_login()
+
+login(token="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")
+
 # COMMAND ----------
 
 import os
@@ -66,24 +69,29 @@ get_dbutils().widgets.combobox(
     SUPPORTED_INPUT_MODELS,
     "pretrained_name_or_path",
 )
+
 # COMMAND ----------
+
 pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
+print(pretrained_name_or_path)
 
 # COMMAND ----------
 
 questions = [
-    "Write a love letter to Edgar Allan Poe",
-    "Write a tweet announcing a new language model called Dolly from Databricks",
-    "Explain the novelty of GPT-3 in 5 bullet points",
-    "PLease explain what is Machine Learning?",
-    "How are you?",
+    " The coffee shop 'The Wrestlers' is located on the riverside, near 'Raja Indian Cuisine'. They serve English food and a price range of less than £20, and are not family-friendly. ",
+    " Cotto is an inexpensive English restaurant near The Portland Arms in the city centre, and provides English coffee shop food. Customers recently rated the store 5 out of 5. ",
+    " The Eagle coffee shops Chinese food, moderately priced, customer rating 1 out of 5, located city centre, kid friendly, located near Burger King. ",
+    " The Punter is a child friendly establishment located by the riverside with a customer rating of 1 out of 5. ",
+    " Taste of Cambridge, a coffee shop specializing in English eatery, is located in riverside near Crowne Plaza Hotel and is known to be very kid friendly. ",
+    " The Punter is an expensive Chinese coffee shop located near Café Sicilia. ",
+    " Clowns is a coffee shop that severs English food. Clowns is located in Riverside near Clare Hall. Clowns customer service ratings are low. ",
 ]
 
 # COMMAND ----------
 
 model, tokenizer = get_model_and_tokenizer(
     pretrained_name_or_path,
-    pretrained_name_or_path_tokenizer=pretrained_name_or_path,
+    pretrained_name_or_path_tokenizer="meta-llama/Llama-2-13b-chat-hf",
     inference=True,
 )
 
@@ -95,15 +103,14 @@ model, tokenizer = get_model_and_tokenizer(
 
 
 def get_prompt_llama(query: str) -> str:
-    return f"""<s>[INST] <<SYS>>You are a helpful, respectful, and honest assistant. Your answers should not include any harmful, racist, sexist, or illegal content. If you don't know the answer to a question, avoid sharing false information.<</SYS>>{query} [/INST]###"""
+    return f"""<s>[INST] <<SYS>>Extract entities from the text below.<</SYS>> {query} [/INST] """
 
 
 def post_process(s: str) -> str:
-    _idx = s.find("###")
+    _idx = s.find("[/INST]")
     if _idx > 0:
-        return s[_idx + 4 :].strip()
-    else:
-        return s
+        s = s[_idx + len("[/INST]") :].strip()
+    return s.replace("[inst}", "")
 
 
 # COMMAND ----------
@@ -116,10 +123,12 @@ res_df = generate_text_for_df(
     q_df,
     "txt",
     "gen_txt",
-    batch_size=2,
+    batch_size=20,
     gen_prompt_fn=get_prompt_llama,
     post_process_fn=post_process,
-    max_new_tokens=512,
-    temperature=0.1,
+    max_new_tokens=64,
+    temperature=0,
 )
 display(res_df)
+
+# COMMAND ----------
