@@ -1,9 +1,4 @@
 # Databricks notebook source
-from huggingface_hub import notebook_login
-
-notebook_login()
-
-# COMMAND ----------
 
 # MAGIC %md # e2e_nlg
 
@@ -43,22 +38,3 @@ ds = (
 ds.save_to_disk("/dbfs/msh/llm/datasets/e2e_nlg")
 
 # COMMAND ----------
-
-
-# COMMAND ----------
-
-from datasets import load_dataset
-
-ds = load_dataset("e2e_nlg")["validation"].shuffle()
-it = iter(ds)
-for _ in range(10):
-    print("'", next(it)["human_reference"], "',")
-
-# COMMAND ----------
-
-from datasets import load_dataset, load_from_disk
-
-ds = load_from_disk("/dbfs/msh/llm/datasets/e2e_nlg")["train"].shuffle()
-it = iter(ds)
-for _ in range(10):
-    print("'", next(it)["human_reference"], "',")
