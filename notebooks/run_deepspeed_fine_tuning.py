@@ -91,6 +91,12 @@ dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
 
 # MAGIC !mkdir -p {dbfs_output_location}
 
+
+# COMMAND ----------
+
+# MAGIC %load_ext tensorboard
+# MAGIC %tensorboard --logdir '/local_disk0/output/runs'
+
 # COMMAND ----------
 
 # MAGIC  !cd .. && deepspeed \

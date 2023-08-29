@@ -48,10 +48,12 @@ logging.getLogger("sh.command").setLevel(logging.ERROR)
 from databricks_llm.notebook_utils import get_dbutils
 
 get_dbutils().widgets.text("dbfs_model_location", "/dbfs/llm/", "dbfs_model_location")
+get_dbutils().widgets.text("model_name", "my_llm", "model_name")
 
 # COMMAND ----------
 
 dbfs_model_location = get_dbutils().widgets.get("dbfs_model_location")
+model_name = get_dbutils().widgets.get("model_name")
 print(dbfs_model_location)
 # COMMAND ----------
 
@@ -179,5 +181,5 @@ loaded_model.predict(input_example)
 # COMMAND ----------
 
 # Register model in MLflow Model Registry
-result = mlflow.register_model("runs:/" + run.info.run_id + "/model", "fine_tuned_llm")
+result = mlflow.register_model("runs:/" + run.info.run_id + "/model", model_name)
 # Note: Due to the large size of the model, the registration process might take longer than the default maximum wait time of 300 seconds. MLflow could throw an exception indicating that the max wait time has been exceeded. Don't worry if this happens - it's not necessarily an error. Instead, you can confirm the registration status of the model by directly checking the model registry. This exception is merely a time-out notification and does not necessarily imply a failure in the registration process.
