@@ -12,6 +12,13 @@
 
 # COMMAND ----------
 from huggingface_hub import notebook_login, login
+import pandas as pd
+import transformers
+import mlflow
+import torch
+import logging
+
+print(torch.__version__)
 
 # notebook_login()
 
@@ -27,7 +34,6 @@ os.environ["NCCL_DEBUG"] = "INFO"
 
 # COMMAND ----------
 
-import logging
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
@@ -41,58 +47,16 @@ logging.getLogger("sh.command").setLevel(logging.ERROR)
 
 from databricks_llm.notebook_utils import get_dbutils
 
-# COMMAND ----------
-
-DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-7b-chat-hf"
-SUPPORTED_INPUT_MODELS = [
-    "mosaicml/mpt-30b-instruct",
-    "mosaicml/mpt-7b-instruct",
-    "meta-llama/Llama-2-13b-chat-hf",
-    "tiiuae/falcon-7b-instruct",
-    "tiiuae/falcon-40b-instruct",
-    "HuggingFaceH4/starchat-beta",
-]
+get_dbutils().widgets.text("dbfs_model_location", "/dbfs/llm/", "dbfs_model_location")
 
 # COMMAND ----------
 
-get_dbutils().widgets.text("num_gpus", "4", "num_gpus")
-get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
-get_dbutils().widgets.combobox(
-    "pretrained_name_or_path",
-    DEFAULT_INPUT_MODEL,
-    SUPPORTED_INPUT_MODELS,
-    "pretrained_name_or_path",
-)
-get_dbutils().widgets.text(
-    "dataset",
-    "mlabonne/guanaco-llama2",
-    "dataset",
-)
-
-# COMMAND ----------
-
-num_gpus = get_dbutils().widgets.get("num_gpus")
-pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
-dataset = get_dbutils().widgets.get("dataset")
 dbfs_model_location = get_dbutils().widgets.get("dbfs_model_location")
-
+print(dbfs_model_location)
 # COMMAND ----------
 
 
-# MAGIC !ls -lah {dbfs_output_location}
-
-# COMMAND ----------
-
-print(dbfs_output_location)
-
-# COMMAND ----------
-
-import pandas as pd
-import transformers
-import mlflow
-import torch
-
-print(torch.__version__)
+# MAGIC !ls -lah {dbfs_model_location}
 
 # COMMAND ----------
 
@@ -110,7 +74,7 @@ class LLMPyFuncModel(mlflow.pyfunc.PythonModel):
         """
         # Initialize tokenizer and language model
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            "tiiuae/falcon-7b", padding_side="left", trust_remote_code=True
+            context.artifacts["repository"], padding_side="left", trust_remote_code=True
         )
         self.model = transformers.AutoModelForCausalLM.from_pretrained(
             context.artifacts["repository"],
@@ -122,17 +86,12 @@ class LLMPyFuncModel(mlflow.pyfunc.PythonModel):
         )
         self.model.eval()
 
-    def _build_prompt(self, instruction):
+    def _build_prompt(self, query):
         """
         This method generates the prompt for the model.
         """
-        INSTRUCTION_KEY = "Instruction:"
-        RESPONSE_KEY = "Response:"
 
-        return f"""{INSTRUCTION_KEY}
-        {instruction}
-        {RESPONSE_KEY}
-        """
+        return f"""<s>[INST] <<SYS>>Extract entities from the text below.<</SYS>> {query} [/INST] """
 
     def predict(self, context, model_input):
         """

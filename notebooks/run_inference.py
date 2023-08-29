@@ -20,7 +20,6 @@ from huggingface_hub import notebook_login, login
 
 # notebook_login()
 
-login(token="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")
 
 # COMMAND ----------
 
