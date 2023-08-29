@@ -41,8 +41,9 @@ logging.getLogger("sh.command").setLevel(logging.ERROR)
 # COMMAND ----------
 
 from databricks_llm.notebook_utils import get_dbutils
-from databricks_llm.utils import copy_source_code, remote_login
+from databricks_llm.utils import copy_source_code, remote_login, check_mount_dev_shm
 
+check_mount_dev_shm()
 # COMMAND ----------
 
 DEFAULT_INPUT_MODEL = "mosaicml/mpt-30b-instruct"
