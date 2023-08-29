@@ -111,10 +111,16 @@ def check_mount_dev_shm():
 
 
 def copy_source_code(dest: str):
-    src = (pathlib.Path.cwd() / ".." / "databricks_llm").resolve()
-    dest = (pathlib.Path(dest) / "databricks_llm").resolve()
-    dest.touch(exist_ok=True)
-    shutil.copytree(str(src), str(dest), dirs_exist_ok=True)
+    src = (pathlib.Path.cwd() / "..").resolve()
+    dest = (pathlib.Path(dest)).resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(str(dest), ignore_errors=True)
+    shutil.copytree(
+        str(src),
+        str(dest),
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("notebooks", "old_notebooks"),
+    )
 
 
 def hf_login(it, token_file: str = ""):
