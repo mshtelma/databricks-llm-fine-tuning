@@ -10,12 +10,12 @@
 # COMMAND ----------
 
 # DBTITLE 1,Install Required Libraries
-# MAGIC %run "./util/install-prep-libraries"
+# MAGIC %run "../../databricks_llm/prompt_utils/install-prep-libraries"
 
 # COMMAND ----------
 
 # DBTITLE 1,Optional : Load Ray Dashboard to show cluster Utilisation
-# MAGIC %run "./util/install_ray"
+# MAGIC %run "../../databricks_llm/prompt_utils/install_ray"
 
 # COMMAND ----------
 
@@ -36,12 +36,12 @@ from langchain.base_language import BaseLanguageModel
 
 from langchain import LLMChain
 from datasets import Dataset, load_dataset
-from util.mptbot import HuggingFacePipelineLocal,TGILocalPipeline
+from databricks_llm.prompt_utils.mptbot import HuggingFacePipelineLocal,TGILocalPipeline
 
 # COMMAND ----------
 
 # DBTITLE 1,Get Config Settings
-# MAGIC %run "./util/notebook-config"
+# MAGIC %run "../../databricks_llm/prompt_utils/notebook-config"
 
 # COMMAND ----------
 

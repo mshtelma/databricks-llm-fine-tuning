@@ -18,6 +18,7 @@ config['use-case']="dss_few_shot_prompt_comparison"
 # config['model_id'] = 'meta-llama/Llama-2-70b-chat-hf'
 # config['model_id'] = 'meta-llama/Llama-2-13b-chat-hf'
 config['model_id'] = 'mosaicml/mpt-30b-chat'
+
 username = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
 config['use_azure_formrecognizer'] = True
 
