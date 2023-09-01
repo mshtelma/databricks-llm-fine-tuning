@@ -204,7 +204,7 @@ display(df.sample(frac=0.2, random_state = 123).head(10))
 # MAGIC
 # MAGIC * The dataset we're using contains multiple different intents.
 # MAGIC * For our experiment to be minimally successful, we need to provide at least some few shot examples for each and every intent.
-# MAGIC * For simplicity purposes, we will select the top 10 most frequent intents. Then, for each of these top 10 intents, we will randomly sample 5 different utterances/questions.
+# MAGIC * For simplicity purposes, we will select the top 10 most frequent intents. Then, for each of these top 10 intents, we will randomly sample 3 different utterances/questions.
 # MAGIC * Concretely, our dataframe containing few shot examples will be our **training set** (although we're not really *training* our model per se; this will just be our convention).
 # MAGIC * The remaining part of our dataset will be our **testing set**, which we'll use to evaluate how our Few Shot experiment performs.
 

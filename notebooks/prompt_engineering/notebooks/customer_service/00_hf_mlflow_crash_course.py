@@ -1,8 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Tune a text classification model with Hugging Face Transformers
-# MAGIC This notebook trains a SMS spam classifier with "distillibert-base-uncased" as the base model on a single GPU machine
-# MAGIC using the [🤗&nbsp;Transformers](https://huggingface.co/docs/transformers/index) library.
+# MAGIC This notebook trains a sequence classification model with "distillibert-base-uncased" as the base model using the [🤗&nbsp;Transformers](https://huggingface.co/docs/transformers/index) library.
 # MAGIC
 # MAGIC ## Cluster setup
 # MAGIC For this notebook, Databricks recommends a single GPU cluster, such as a `g4dn.xlarge` on AWS or `Standard_NC4as_T4_v3` on Azure. You can [create a single machine cluster](https://docs.databricks.com/clusters/configure.html) using the personal compute policy or by choosing "Single Node" when creating a cluster. This notebook works with Databricks Runtime ML GPU version 11.1 or greater. Databricks Runtime ML GPU versions 9.1 through 10.4 can be used by replacing the following command with `%pip install --upgrade transformers datasets evaluate`.
@@ -58,6 +57,7 @@ def tokenize_function(examples):
     return tokenizer(examples["text"], padding=False, truncation=True)
 
 tokenized_df = ds.map(tokenize_function, batched=True).remove_columns(["text"])
+tokenized_df["train"]["input_ids"]
 
 # COMMAND ----------
 
@@ -85,7 +85,6 @@ import numpy as np
 accuracy = evaluate.load("accuracy")
 
 import numpy as np
-
 
 def compute_metrics(eval_pred):
   predictions, labels = eval_pred
@@ -193,13 +192,14 @@ from tqdm.auto import tqdm
 import torch
 
 pipeline_artifact_name = "pipeline"
+
 class TextClassificationPipelineModel(mlflow.pyfunc.PythonModel):
   
   def load_context(self, context):
     device = 0 if torch.cuda.is_available() else -1
     self.pipeline = pipeline("text-classification", context.artifacts[pipeline_artifact_name], device=device)
     
-  def predict(self, context, model_input): 
+  def predict(self, context, model_input):
     texts = model_input[model_input.columns[0]].to_list()
     pipe = tqdm(self.pipeline(texts, truncation=True, batch_size=8), total=len(texts), miniters=10)
     labels = [prediction['intent'] for prediction in pipe]
@@ -227,6 +227,7 @@ with mlflow.start_run() as run:
     model=AutoModelForSequenceClassification.from_pretrained(model_output_dir),
     tokenizer=tokenizer
   )
+
   pipe.save_pretrained(pipeline_output_dir)
   mlflow.transformers.log_model(
     transformers_model=pipe,
@@ -238,7 +239,7 @@ with mlflow.start_run() as run:
 
 # DBTITLE 1,Inference
 import mlflow
-logged_model = 'runs:/f53cb5f163c04b3a91174fa01336cb03/intent_classification_model'
+logged_model = 'runs:/d3bf4b5996f54dcf9796df3f4f508f75/intent_classification_model'
 
 # Load model as a PyFuncModel.
 loaded_model = mlflow.pyfunc.load_model(logged_model)

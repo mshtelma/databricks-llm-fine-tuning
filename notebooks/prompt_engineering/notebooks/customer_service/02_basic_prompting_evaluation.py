@@ -139,10 +139,16 @@ eval_df
 
 # COMMAND ----------
 
+    run_ids
+
+
+# COMMAND ----------
+
 for i in range(3):
   with mlflow.start_run(
     run_id=run_ids[i]
   ):  # reopen the run with the stored run ID
+      f"runs:/{run_ids[i]}/{artifact_paths[i]}"
     evaluation_results = mlflow.evaluate(
       model=f"runs:/{run_ids[i]}/{artifact_paths[i]}",
       model_type="text",
@@ -247,6 +253,9 @@ with mlflow.start_run(run_name=f"log_model_{model_name}_{time.time_ns()}"):
         "config_dict": {},  # Assuming an empty dict for the generation parameters in this example
     }
   )
+
+  perplexity = #...
+  mlflow.log_metric("perplexity", perplexity)
 
   # Define the artifact_path
   artifact_path = f"models/{model_name}"

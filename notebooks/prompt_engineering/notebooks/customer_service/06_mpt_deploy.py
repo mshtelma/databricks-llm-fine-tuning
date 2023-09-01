@@ -3,7 +3,7 @@
 # MAGIC # Manage MPT-7B-instruct model with MLFlow on Databricks
 # MAGIC
 # MAGIC Environment for this notebook:
-# MAGIC - Runtime: 13.1 GPU ML Runtime
+# MAGIC - Runtime: 13.2 GPU ML Runtime
 # MAGIC - Instance: `g5.4xlarge` on AWS, `Standard_NV36ads_A10_v5` on Azure
 
 # COMMAND ----------
@@ -33,20 +33,22 @@ class MPT(mlflow.pyfunc.PythonModel):
         """
         # Initialize tokenizer and language model
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            "EleutherAI/gpt-neox-20b",
-            padding_side="left"
-        )
+          "EleutherAI/gpt-neox-20b", padding_side="left")
+
         config = transformers.AutoConfig.from_pretrained(
             "mosaicml/mpt-7b-instruct", 
-            trust_remote_code=True,
-            revision="bbe7a55d70215e16c00c1825805b81e4badb57d7"
+            trust_remote_code=True
         )
+
+        #config.attn_config['attn_impl'] = 'triton'
+        config.init_device = 'cuda:0' # For fast initialization directly on GPU!
         
         self.model = transformers.AutoModelForCausalLM.from_pretrained(
             "mosaicml/mpt-7b-instruct", 
             config=config,
             torch_dtype=torch.bfloat16,
             trust_remote_code=True,
+            cache_dir="/local_disk0/.cache/huggingface/",
             revision="bbe7a55d70215e16c00c1825805b81e4badb57d7"
         )
         self.model.to(device='cuda')
@@ -117,13 +119,9 @@ with mlflow.start_run() as run:
     mlflow.pyfunc.log_model(
         "model",
         python_model=MPT(),
-        pip_requirements=[
-          "torch==2.0.1",
-          "transformers",
-          "accelerate==0.21.0",
-          "einops",
-          "sentencepiece"
-        ],
+        pip_requirements=[f"torch==2.0.1", 
+                          f"transformers=={transformers.__version__}", 
+                          f"accelerate=={accelerate.__version__}", "einops", "sentencepiece"],
         input_example=input_example,
         signature=signature
     )
@@ -139,7 +137,8 @@ with mlflow.start_run() as run:
 # This may take about 6 minutes to complete
 result = mlflow.register_model(
     "runs:/"+run.info.run_id+"/model",
-    name="mpt-7b-instruct-rvp-2"
+    name="mpt-7b-instruct-rvp",
+    await_registration_for=1000,
 )
 
 # COMMAND ----------
@@ -153,7 +152,7 @@ result = mlflow.register_model(
 # COMMAND ----------
 
 # Provide a name to the serving endpoint
-endpoint_name = 'mpt-7b-instruct-example-rvp-2'
+endpoint_name = 'mpt-7b-instruct-example-rvp2'
 
 # COMMAND ----------
 
@@ -197,5 +196,4 @@ print(deploy_response.json())
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC Once the model serving endpoint is ready, you can query it easily with LangChain (see `04_langchain` for example code) running in the same workspace.
+
