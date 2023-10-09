@@ -4,8 +4,8 @@
 # COMMAND ----------
 
 # MAGIC %sh
-# MAGIC mkdir -p /local_disk0/git/ 
-# MAGIC cd /local_disk0/git/ 
+# MAGIC mkdir -p /local_disk0/git/
+# MAGIC cd /local_disk0/git/
 # MAGIC git clone https://github.com/Azure/azure-sdk-for-python.git
 # MAGIC cd azure-sdk-for-python/sdk/formrecognizer/azure-ai-formrecognizer
 # MAGIC pip install -e .
@@ -17,4 +17,5 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 import nltk
-nltk.download('punkt')
+
+nltk.download("punkt")

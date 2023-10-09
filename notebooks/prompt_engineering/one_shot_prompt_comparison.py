@@ -26,17 +26,24 @@ import pandas as pd
 import mlflow
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.embeddings import HuggingFaceEmbeddings,HuggingFaceInstructEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings, HuggingFaceInstructEmbeddings
 from langchain.vectorstores.faiss import FAISS
 from langchain.schema import BaseRetriever
-from langchain.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
+from langchain.prompts import (
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+    ChatPromptTemplate,
+)
 from langchain.prompts.base import BasePromptTemplate
 from langchain.prompts import PromptTemplate
 from langchain.base_language import BaseLanguageModel
 
 from langchain import LLMChain
 from datasets import Dataset, load_dataset
-from databricks_llm.prompt_utils.mptbot import HuggingFacePipelineLocal,TGILocalPipeline
+from databricks_llm.prompt_utils.mptbot import (
+    HuggingFacePipelineLocal,
+    TGILocalPipeline,
+)
 
 # COMMAND ----------
 
@@ -53,10 +60,11 @@ from databricks_llm.prompt_utils.mptbot import HuggingFacePipelineLocal,TGILocal
 
 # DBTITLE 1,Specify Question
 dataset = load_dataset(
-        config['hf_dataset'],
-        split="train",
-        cache_dir="/tmp/hf/cache",
-        data_dir="/tmp/hf/data")
+    config["hf_dataset"],
+    split="train",
+    cache_dir="/tmp/hf/cache",
+    data_dir="/tmp/hf/data",
+)
 
 dataset = dataset.select(range(min(len(dataset), 50)))
 
@@ -66,19 +74,21 @@ dataset = dataset.to_pandas()
 
 # COMMAND ----------
 
-print('meaning_representation:',dataset.iloc[-3]['meaning_representation'])
-print('human_reference:',dataset.iloc[-3]['human_reference'])
+print("meaning_representation:", dataset.iloc[-3]["meaning_representation"])
+print("human_reference:", dataset.iloc[-3]["human_reference"])
 
 # COMMAND ----------
 
-# MAGIC %md Using our vector store, assembled in the prior notebook, we will retrieve document chunks relevant to the question: 
+# MAGIC %md Using our vector store, assembled in the prior notebook, we will retrieve document chunks relevant to the question:
 # MAGIC
 # MAGIC **NOTE** The OpenAI API key used by the OpenAIEmbeddings object is specified in an environment variable set during the earlier `%run` call to get configuration variables.
 
 # COMMAND ----------
 
 # DBTITLE 1,Create Correct Prompt Structure
-config['template'] = """<|im_start|>system\n- You are an assistant which helps extracts important entities.If the input is incorrect just say I cannot answer the questions.Do not add entities which are not explicitly mentioned \n<|im_end|>\n<|im_start|>user\n text: {context} \n <|im_end|><|im_start|>\n assistant""".strip().strip()
+config[
+    "template"
+] = """<|im_start|>system\n- You are an assistant which helps extracts important entities.If the input is incorrect just say I cannot answer the questions.Do not add entities which are not explicitly mentioned \n<|im_end|>\n<|im_start|>user\n text: {context} \n <|im_end|><|im_start|>\n assistant""".strip().strip()
 
 # COMMAND ----------
 
@@ -97,26 +107,26 @@ dataset.iloc[0]
 
 # DBTITLE 1,Define Chain to Generate Responses
 # define system-level instructions
-system_message_prompt = SystemMessagePromptTemplate.from_template(config['template'])
+system_message_prompt = SystemMessagePromptTemplate.from_template(config["template"])
 chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt])
 
 
-if config['model_id']  == 'openai':
-
-  # define model to respond to prompt
-  llm = ChatOpenAI(model_name=config['openai_chat_model'], temperature=config['temperature'])
+if config["model_id"] == "openai":
+    # define model to respond to prompt
+    llm = ChatOpenAI(
+        model_name=config["openai_chat_model"], temperature=config["temperature"]
+    )
 
 else:
-  # define model to respond to prompt
-  llm = TGILocalPipeline.from_model_id(
-    model_id=config['model_id'],
-    model_kwargs =config['model_kwargs'],
-    pipeline_kwargs= config['pipeline_kwargs'])
+    # define model to respond to prompt
+    llm = TGILocalPipeline.from_model_id(
+        model_id=config["model_id"],
+        model_kwargs=config["model_kwargs"],
+        pipeline_kwargs=config["pipeline_kwargs"],
+    )
 
 # combine prompt and model into a unit of work (chain)
-qa_chain = LLMChain(
-  llm = llm,
-  prompt = chat_prompt)
+qa_chain = LLMChain(llm=llm, prompt=chat_prompt)
 
 # COMMAND ----------
 
@@ -128,10 +138,10 @@ qa_chain = LLMChain(
 
 # DBTITLE 1,Generate a Response
 # for each provided document
-text = dataset.iloc[10]['human_reference']
+text = dataset.iloc[10]["human_reference"]
 
 # generate a response
-output = qa_chain.generate([{'context': text}])
+output = qa_chain.generate([{"context": text}])
 
 # get answer from results
 generation = output.generations[0][0]
@@ -139,7 +149,7 @@ answer = generation.text
 
 # display answer
 if answer is not None:
-  print(f"Context: {text}", '\n', f"Answer: {answer}")
+    print(f"Context: {text}", "\n", f"Answer: {answer}")
 
 # COMMAND ----------
 
@@ -147,22 +157,26 @@ if answer is not None:
 # MAGIC
 # MAGIC With our bot class defined and validated, we can now persist it to MLflow.  MLflow is an open source repository for model tracking and logging.  It's deployed by default with the Databricks platform, making it easy for us to record models with it.
 # MAGIC
-# MAGIC While MLflow now [supports](https://www.databricks.com/blog/2023/04/18/introducing-mlflow-23-enhanced-native-llm-support-and-new-features.html) both OpenAI and LangChain model flavors, the fact that we've written custom logic for our bot application means that we'll need to make use of the more generic [pyfunc](https://mlflow.org/docs/latest/python_api/mlflow.pyfunc.html#creating-custom-pyfunc-models) model flavor.  This model flavor allows us to write a custom wrapper for our model that gives us considerable control over how our model responds when deployed through standard, MLflow-provided deployment mechanisms. 
+# MAGIC While MLflow now [supports](https://www.databricks.com/blog/2023/04/18/introducing-mlflow-23-enhanced-native-llm-support-and-new-features.html) both OpenAI and LangChain model flavors, the fact that we've written custom logic for our bot application means that we'll need to make use of the more generic [pyfunc](https://mlflow.org/docs/latest/python_api/mlflow.pyfunc.html#creating-custom-pyfunc-models) model flavor.  This model flavor allows us to write a custom wrapper for our model that gives us considerable control over how our model responds when deployed through standard, MLflow-provided deployment mechanisms.
 # MAGIC
 # MAGIC To create a custom MLflow model, all we need to do is define a class wrapper of type *mlflow.pyfunc.PythonModel*. The *__init__* method will initialize an instance of our *QABot* class and persist it to an class variable.  And a *predict* method will serve as the standard interface for generating a reponse.  That method will receive our inputs as a pandas dataframe but we can write the logic with the knowledge that it will only be receiving one user-provided question at a time:
 
 # COMMAND ----------
 
+
 # DBTITLE 1,Define MLflow Wrapper for Model
 class MLflowQABot(mlflow.pyfunc.PythonModel):
+    def __init__(self, qa_chain):
+        self.qa_chain = qa_chain
 
-  def __init__(self, qa_chain):
-    self.qa_chain = qa_chain
+    def predict(self, context, inputs):
+        questions = list(inputs["human_reference"])
+        # return answer
+        return [
+            self.qa_chain.generate([{"context": q}]).generations[0][0].text
+            for q in questions
+        ]
 
-  def predict(self, context, inputs):
-    questions = list(inputs['human_reference'])
-    # return answer
-    return [self.qa_chain.generate([{'context': q}]).generations[0][0].text for q in questions]
 
 # COMMAND ----------
 
@@ -172,21 +186,20 @@ class MLflowQABot(mlflow.pyfunc.PythonModel):
 
 qbot = MLflowQABot(qa_chain)
 test_df = dataset[:5]
-qbot.predict([],test_df)
+qbot.predict([], test_df)
 
 # COMMAND ----------
 
-try :
-  spark.read.table("eval_questions")
+try:
+    spark.read.table("eval_questions")
 except:
-  print("Creating the evaluation dataset")
-  _ = (
-    spark.createDataFrame(dataset)
-      .write
-      .format('delta')
-      .mode('overwrite')
-      .option('overwriteSchema','true')
-      .saveAsTable("eval_questions")
+    print("Creating the evaluation dataset")
+    _ = (
+        spark.createDataFrame(dataset)
+        .write.format("delta")
+        .mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable("eval_questions")
     )
 
 # COMMAND ----------
@@ -194,37 +207,34 @@ except:
 # DBTITLE 1,Persist Evaluation to MLflow
 # instantiate mlflow model
 model = MLflowQABot(qa_chain)
-with mlflow.start_run(run_name = config['model_id']):
-  # Load the dataset and add it to the model run
-    questions = mlflow.data.load_delta(table_name = 'eval_questions')
+with mlflow.start_run(run_name=config["model_id"]):
+    # Load the dataset and add it to the model run
+    questions = mlflow.data.load_delta(table_name="eval_questions")
     mlflow.log_input(questions, context="eval_set")
 
-  # Load model Parameters
-    mlflow.log_param("model_id",config['model_id'])
-    
+    # Load model Parameters
+    mlflow.log_param("model_id", config["model_id"])
+
     # mlflow.log_param("prompt template",config['template'])
-    mlflow.log_text(config['template'], "prompt.txt")
+    mlflow.log_text(config["template"], "prompt.txt")
 
-  # log pipeline_params
+    # log pipeline_params
     if "pipeline_kwargs" in config:
-      mlflow.log_params(config['pipeline_kwargs'])
-  
-    if "model_kwargs" in config:
-      mlflow.log_params(config['model_kwargs'])
+        mlflow.log_params(config["pipeline_kwargs"])
 
+    if "model_kwargs" in config:
+        mlflow.log_params(config["model_kwargs"])
 
     questions = spark.read.table("eval_questions").toPandas()
-    outputs = model.predict(context = None,inputs =questions)
-
-
+    outputs = model.predict(context=None, inputs=questions)
 
     # Evaluate the model on some example questions
     table_dict = {
-    "text": list(questions['human_reference']),
-    "predicted_entities": [output for output in outputs],
-    "actual_entities": list(questions['meaning_representation']),
+        "text": list(questions["human_reference"]),
+        "predicted_entities": [output for output in outputs],
+        "actual_entities": list(questions["meaning_representation"]),
     }
-    mlflow.log_table(table_dict,"eval.json")
+    mlflow.log_table(table_dict, "eval.json")
     mlflow.end_run()
 
 # COMMAND ----------
@@ -239,4 +249,3 @@ with mlflow.start_run(run_name = config['model_id']):
 # MAGIC | openai | Building applications with LLMs through composability | MIT  |   https://pypi.org/project/openai/ |
 
 # COMMAND ----------
-
