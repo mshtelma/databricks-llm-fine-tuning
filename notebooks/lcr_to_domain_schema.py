@@ -1,5 +1,4 @@
 # Databricks notebook source
-# MAGIC
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
@@ -48,6 +47,14 @@ from databricks_llm.notebook_utils import get_dbutils
 
 
 
+
+# COMMAND ----------
+
+import pandas as pd
+
+lcr_tables = pd.read_json("../data/lcr_tables.json", lines=True)
+lcr_fields = pd.read_json("../data/lcr_fields.json", lines=True)
+lcr_rules = pd.read_json("../data/lcr_elm.json", lines=True)
 
 # COMMAND ----------
 

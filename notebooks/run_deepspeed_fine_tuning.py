@@ -1,19 +1,15 @@
 # Databricks notebook source
-# MAGIC %pip install torch==2.0.1
+# MAGIC %sh  /databricks/python3/bin/pip install torch==2.0.1
 
 # COMMAND ----------
 
-# MAGIC %pip install -r ../requirements.txt
+# MAGIC %sh  /databricks/python3/bin/pip install -r ../requirements.txt
 
 # COMMAND ----------
 
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
 
-# COMMAND ----------
-from huggingface_hub import notebook_login
-
-notebook_login()
 # COMMAND ----------
 
 import os
@@ -42,72 +38,38 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-13b-chat-hf"
-SUPPORTED_INPUT_MODELS = [
-    "mosaicml/mpt-30b-instruct",
-    "mosaicml/mpt-7b-instruct",
-    "meta-llama/Llama-2-13b-chat-hf",
-    "tiiuae/falcon-7b-instruct",
-    "tiiuae/falcon-40b-instruct",
-]
-
-# COMMAND ----------
-
-get_dbutils().widgets.text("num_gpus", "8", "num_gpus")
-get_dbutils().widgets.text("dbfs_output_location", "/dbfs/llm/", "dbfs_output_location")
-get_dbutils().widgets.combobox(
-    "pretrained_name_or_path",
-    DEFAULT_INPUT_MODEL,
-    SUPPORTED_INPUT_MODELS,
-    "pretrained_name_or_path",
-)
-get_dbutils().widgets.text(
-    "dataset",
-    "mlabonne/guanaco-llama2",
-    "dataset",
-)
-
-# COMMAND ----------
-num_gpus = get_dbutils().widgets.get("num_gpus")
-pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
-dataset = get_dbutils().widgets.get("dataset")
-dbfs_output_location = get_dbutils().widgets.get("dbfs_output_location")
-
-# COMMAND ----------
-
-# MAGIC !cd .. && deepspeed \
-# MAGIC --num_gpus={num_gpus} \
+# MAGIC %sh cd .. && deepspeed \
+# MAGIC --num_gpus=8 \
 # MAGIC --module databricks_llm.fine_tune \
-# MAGIC --token="{huggingface_token}" \
-# MAGIC --final_model_output_path="{dbfs_output_location}" \
+# MAGIC --final_model_output_path="/dbfs/tmp/msh/osff/morphir_lcr_starchat_v4" \
 # MAGIC --output_dir="/local_disk0/output" \
-# MAGIC --dataset={dataset} \
-# MAGIC --model={pretrained_name_or_path} \
-# MAGIC --tokenizer={pretrained_name_or_path} \
+# MAGIC --dataset="/dbfs/tmp/msh/osff/morphir_lcr_test_data_v3" \
+# MAGIC --model="HuggingFaceH4/starchat-beta" \
+# MAGIC --tokenizer="HuggingFaceH4/starchat-beta" \
 # MAGIC --use_lora=false \
 # MAGIC --use_4bit=false \
 # MAGIC --deepspeed_config="ds_configs/ds_zero_3_cpu_offloading.json" \
 # MAGIC --fp16=false \
 # MAGIC --bf16=true \
-# MAGIC --per_device_train_batch_size=24 \
-# MAGIC --per_device_eval_batch_size=24 \
+# MAGIC --per_device_train_batch_size=12 \
+# MAGIC --per_device_eval_batch_size=12 \
 # MAGIC --gradient_checkpointing=true \
 # MAGIC --gradient_accumulation_steps=1 \
-# MAGIC --learning_rate=3e-4 \
+# MAGIC --learning_rate=3e-6 \
 # MAGIC --adam_beta1=0.9 \
 # MAGIC --adam_beta2=0.95 \
 # MAGIC --adam_epsilon=1e-4 \
 # MAGIC --lr_scheduler_type="cosine" \
-# MAGIC --warmup_steps=5 \
+# MAGIC --warmup_steps=25 \
 # MAGIC --weight_decay=0.1 \
 # MAGIC --evaluation_strategy="steps" \
 # MAGIC --save_strategy="steps" \
-# MAGIC --save_steps=5 \
-# MAGIC --num_train_epochs=1
+# MAGIC --save_steps=100 \
+# MAGIC --num_train_epochs=2
 
 # COMMAND ----------
 
-# MAGIC !ls -lah {dbfs_output_location}
+!ls -lah {dbfs_output_location}
 
 # COMMAND ----------
 

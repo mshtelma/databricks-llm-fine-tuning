@@ -1,5 +1,4 @@
 # Databricks notebook source
-# MAGIC
 # MAGIC %pip install torch==2.0.1
 
 # COMMAND ----------
@@ -8,17 +7,9 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python
-
-# COMMAND ----------
-
 # MAGIC %load_ext autoreload
 # MAGIC %autoreload 2
 
-# COMMAND ----------
-from huggingface_hub import notebook_login
-
-notebook_login()
 # COMMAND ----------
 
 import os
@@ -49,43 +40,77 @@ from databricks_llm.notebook_utils import get_dbutils
 
 # COMMAND ----------
 
-DEFAULT_INPUT_MODEL = "meta-llama/Llama-2-7b-chat-hf"
-SUPPORTED_INPUT_MODELS = [
-    "mosaicml/mpt-30b-instruct",
-    "mosaicml/mpt-7b-instruct",
-    "meta-llama/Llama-2-7b-chat-hf",
-    "meta-llama/Llama-2-13b-chat-hf",
-    "meta-llama/Llama-2-70b-chat-hf",
-]
-
-# COMMAND ----------
-
-get_dbutils().widgets.combobox(
-    "pretrained_name_or_path",
-    DEFAULT_INPUT_MODEL,
-    SUPPORTED_INPUT_MODELS,
-    "pretrained_name_or_path",
-)
-# COMMAND ----------
-pretrained_name_or_path = get_dbutils().widgets.get("pretrained_name_or_path")
-
-# COMMAND ----------
-
-questions = [
-    "Write a love letter to Edgar Allan Poe",
-    "Write a tweet announcing a new language model called Dolly from Databricks",
-    "Explain the novelty of GPT-3 in 5 bullet points",
-    "PLease explain what is Machine Learning?",
-    "How are you?",
-]
-
-# COMMAND ----------
-
 model, tokenizer = get_model_and_tokenizer(
-    pretrained_name_or_path,
-    pretrained_name_or_path_tokenizer=pretrained_name_or_path,
+    "/dbfs/tmp/msh/osff/morphir_lcr_starchat_v4",
+    pretrained_name_or_path_tokenizer="HuggingFaceH4/starchat-beta",
     inference=True,
 )
+
+# COMMAND ----------
+
+prompt = """<|system|>Generate test case input  and test result as json for a rule text given below. Use defined product class in test data.
+<|end|>
+<|user|>
+Product class: IG-2-Q
+Rule text in ELM:
+
+
+isHQLALevel1 : CollateralClass -> Bool
+isHQLALevel1 class =
+   List.member class [ a_0_Q, a_1_Q, a_2_Q, a_3_Q, a_4_Q, a_5_Q, s_1_Q, s_2_Q, s_3_Q, s_4_Q, cB_1_Q, cB_2_Q ]
+
+
+isHQLALevel2A : CollateralClass -> Bool
+isHQLALevel2A class =
+   List.member class [ g_1_Q, g_2_Q, g_3_Q, s_5_Q, s_6_Q, s_7_Q, cB_3_Q ]
+
+
+isHQLALevel2B : CollateralClass -> Bool
+isHQLALevel2B class =
+   List.member class [ e_1_Q, e_2_Q, iG_1_Q, iG_2_Q ]
+
+
+isHQLA : CollateralClass -> Bool
+isHQLA class =
+   isHQLALevel1 class || isHQLALevel2A class || isHQLALevel2B class
+
+
+{-| (1) High-Quality Liquid Assets (Subpart C, §.20-.22)
+-}
+rule_1_section_20_c_1 : Assets -> Maybe Float
+rule_1_section_20_c_1 flow =
+   if
+       List.member flow.product [ i_A_1, i_A_2 ]
+           -- Sub-Product: Not Currency and Coin
+           --&& (flow.subProduct |> Maybe.map (\subProduct -> not (SubProduct.isCurrencyAndCoin subProduct)) |> Maybe.withDefault True)
+           && (flow.subProduct /= Just currency_and_coin)
+           ---- Collateral Class: E-1-Q; E-2-Q; IG-1-Q; IG-2-Q
+           && CollateralClass.isHQLALevel2B flow.collateralClass
+           -- Forward Start Amount: NULL
+           && (flow.forwardStartAmount == Nothing)
+           -- Forward Start Bucket: NULL
+           && (flow.forwardStartBucket == Nothing)
+           -- Encumbrance Type: Null
+           && (flow.encumbranceType == Nothing)
+           -- Treasury Control: Y
+           && (flow.treasuryControl == True)
+   then
+       Just flow.marketValue
+
+   else
+       Nothing
+
+
+<|end|>
+Generate test case input  and test result as json for a rule text given below and product class IG-2-Q.
+<|assistant|>
+"""
+
+generate_text(model, tokenizer, prompt, max_new_tokens=256)
+
+# COMMAND ----------
+
+len(prompt)
 
 # COMMAND ----------
 
