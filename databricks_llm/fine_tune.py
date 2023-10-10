@@ -100,7 +100,6 @@ def load_training_dataset(
 def setup_hf_trainer(
     train_dataset,
     eval_dataset=None,
-    fsdp_pluin: FullyShardedDataParallelPlugin = None,
     **config,
 ) -> Tuple[Trainer, AutoModelForCausalLM, PreTrainedTokenizer]:
     args: ExtendedTrainingArguments = config["args"]
@@ -145,10 +144,10 @@ def setup_hf_trainer(
     )
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    if fsdp_pluin:
-        os.environ["FSDP_AUTO_WRAP_POLICY"] = "TRANSFORMER_BASED_WRAP"
-        os.environ["FSDP_TRANSFORMER_CLS_TO_WRAP"] = "LlamaDecoderLayer"
-        fsdp_pluin.set_auto_wrap_policy(model)
+    # if fsdp_pluin:
+    #     os.environ["FSDP_AUTO_WRAP_POLICY"] = "TRANSFORMER_BASED_WRAP"
+    #     os.environ["FSDP_TRANSFORMER_CLS_TO_WRAP"] = "LlamaDecoderLayer"
+    #     fsdp_pluin.set_auto_wrap_policy(model)
 
     trainer = Trainer(
         model=model,
@@ -161,25 +160,37 @@ def setup_hf_trainer(
 
 
 def train(args: ExtendedTrainingArguments):
+    # os.environ["ACCELERATE_USE_FSDP"] = "true"
+    # os.environ["FSDP_SHARDING_STRATEGY"] = "1"
+    # os.environ["FSDP_OFFLOAD_PARAMS"] = "true"
+    # os.environ["FSDP_AUTO_WRAP_POLICY"] = "TRANSFORMER_BASED_WRAP"
+    # os.environ["FSDP_TRANSFORMER_CLS_TO_WRAP"] = "LlamaDecoderLayer"
+    # os.environ["FSDP_BACKWARD_PREFETCH"] = "BACKWARD_PRE"
+
     set_up_hf_cache()
     handle_hf_key(args)
+    handle_fsdp_params(args)
 
-    if args.fsdp_config:
-        fsdp_plugin = get_fsdp_plugin(args)
-
-        accelerator = Accelerator(
-            fsdp_plugin=fsdp_plugin,
-            mixed_precision=PrecisionType.BF16
-            if args.bf16
-            else PrecisionType.FP16
-            if args.bf16
-            else PrecisionType.NO,
-        )
-        accelerator.print(accelerator.distributed_type)
-        print("World Size = ", torch.distributed.get_world_size())
-        print("Current rank = ", torch.distributed.get_rank())
-    else:
-        fsdp_plugin = None
+    # if args.fsdp_config:
+    #     fsdp_plugin = get_fsdp_plugin(args)
+    #     if args.bf16 or args.fp16:
+    #         fsdp_plugin.set_mixed_precision(
+    #             "bf16" if args.bf16 else "fp16" if args.fp16 else "error!"
+    #         )
+    #
+    #     accelerator = Accelerator(
+    #         fsdp_plugin=fsdp_plugin,
+    #         mixed_precision=PrecisionType.BF16
+    #         if args.bf16
+    #         else PrecisionType.FP16
+    #         if args.bf16
+    #         else PrecisionType.NO,
+    #     )
+    #     accelerator.print(accelerator.distributed_type)
+    #     print("World Size = ", torch.distributed.get_world_size())
+    #     print("Current rank = ", torch.distributed.get_rank())
+    # else:
+    #     fsdp_plugin = None
 
     tokenizer = get_tokenizer(args.tokenizer)
     train_dataset = load_training_dataset(
@@ -198,7 +209,6 @@ def train(args: ExtendedTrainingArguments):
     trainer, model, tokenizer = setup_hf_trainer(
         train_dataset,
         eval_dataset,
-        fsdp_pluin=fsdp_plugin,
         args=args,
         deepspeed_config_dict=deepspeed_config_dict,
     )
@@ -207,46 +217,53 @@ def train(args: ExtendedTrainingArguments):
     tokenizer.save_pretrained(args.final_model_output_path)
 
 
-def get_fsdp_plugin(args: ExtendedTrainingArguments):
-    use_cpu_offloading = False
-    fsdp_sharding_strategy = ShardingStrategy.FULL_SHARD
-    fsdp_state_dict_type = StateDictType.FULL_STATE_DICT
-    fsdp_offload_params = False
-    fsdp_offload_optimizer = False
+def handle_fsdp_params(args):
+    if args.fsdp_config and isinstance(args.fsdp_config, Dict):
+        os.environ["ACCELERATE_USE_FSDP"] = "true"
+        for k, v in args.fsdp_config.items():
+            os.environ[k.upper()] = str(v)
 
-    if isinstance(args.fsdp_config, Dict):
-        fsdp_config_dict: Dict = args.fsdp_config
-        fsdp_offload_params = fsdp_config_dict.get("fsdp_offload_params", False)
-        fsdp_offload_optimizer = fsdp_config_dict.get("fsdp_offload_optimizer", False)
-        if fsdp_config_dict.get("fsdp_offload_params") or fsdp_config_dict.get(
-            "fsdp_offload_optimizer"
-        ):
-            use_cpu_offloading = True
-        if fsdp_config_dict.get("fsdp_sharding_strategy"):
-            fsdp_sharding_strategy = ShardingStrategy._member_map_.get(
-                fsdp_config_dict.get("fsdp_sharding_strategy"),
-                ShardingStrategy.FULL_SHARD,
-            )
-        if fsdp_config_dict.get("fsdp_state_dict_type"):
-            fsdp_state_dict_type = ShardingStrategy._member_map_.get(
-                fsdp_config_dict.get("fsdp_state_dict_type"),
-                fsdp_state_dict_type.FULL_STATE_DICT,
-            )
-    fsdp_plugin = FullyShardedDataParallelPlugin(
-        cpu_offload=CPUOffload(offload_params=use_cpu_offloading),
-        limit_all_gathers=True,
-        sharding_strategy=fsdp_sharding_strategy,
-        state_dict_type=fsdp_state_dict_type,
-        state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
-        if fsdp_offload_params
-        else None,
-        optim_state_dict_config=FullOptimStateDictConfig(
-            offload_to_cpu=True, rank0_only=True
-        )
-        if fsdp_offload_optimizer
-        else None,
-    )
-    return fsdp_plugin
+
+# def get_fsdp_plugin(args: ExtendedTrainingArguments):
+#     use_cpu_offloading = False
+#     fsdp_sharding_strategy = ShardingStrategy.FULL_SHARD
+#     fsdp_state_dict_type = StateDictType.FULL_STATE_DICT
+#     fsdp_offload_params = False
+#     fsdp_offload_optimizer = False
+#
+#     if isinstance(args.fsdp_config, Dict):
+#         fsdp_config_dict: Dict = args.fsdp_config
+#         fsdp_offload_params = fsdp_config_dict.get("fsdp_offload_params", False)
+#         fsdp_offload_optimizer = fsdp_config_dict.get("fsdp_offload_optimizer", False)
+#         if fsdp_config_dict.get("fsdp_offload_params") or fsdp_config_dict.get(
+#             "fsdp_offload_optimizer"
+#         ):
+#             use_cpu_offloading = True
+#         if fsdp_config_dict.get("fsdp_sharding_strategy"):
+#             fsdp_sharding_strategy = ShardingStrategy._member_map_.get(
+#                 fsdp_config_dict.get("fsdp_sharding_strategy"),
+#                 ShardingStrategy.FULL_SHARD,
+#             )
+#         if fsdp_config_dict.get("fsdp_state_dict_type"):
+#             fsdp_state_dict_type = ShardingStrategy._member_map_.get(
+#                 fsdp_config_dict.get("fsdp_state_dict_type"),
+#                 fsdp_state_dict_type.FULL_STATE_DICT,
+#             )
+#     fsdp_plugin = FullyShardedDataParallelPlugin(
+#         cpu_offload=CPUOffload(offload_params=use_cpu_offloading),
+#         limit_all_gathers=True,
+#         sharding_strategy=fsdp_sharding_strategy,
+#         state_dict_type=fsdp_state_dict_type,
+#         state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+#         if fsdp_offload_params
+#         else None,
+#         optim_state_dict_config=FullOptimStateDictConfig(
+#             offload_to_cpu=True, rank0_only=True
+#         )
+#         if fsdp_offload_optimizer
+#         else None,
+#     )
+#     return fsdp_plugin
 
 
 def main():

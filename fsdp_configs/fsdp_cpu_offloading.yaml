@@ -1,8 +1,10 @@
 fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
-fsdp_backward_prefetch_policy: BACKWARD_PRE
+fsdp_backward_prefetch: BACKWARD_PRE
 fsdp_offload_params: true
 fsdp_offload_optimizer: true
-fsdp_sharding_strategy:
-fsdp_state_dict_type: FULL_STATE_DICT
-fsdp_transformer_layer_cls_to_wrap: LlamaDecoderLayer
+fsdp_sharding_strategy: 1
+fsdp_state_dict_type: SHARDED_STATE_DICT
+fsdp_transformer_cls_to_wrap: LlamaDecoderLayer
 # GPTBigCodeBlock  LlamaDecoderLayer
+
+
