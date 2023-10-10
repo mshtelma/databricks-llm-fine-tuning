@@ -160,13 +160,6 @@ def setup_hf_trainer(
 
 
 def train(args: ExtendedTrainingArguments):
-    # os.environ["ACCELERATE_USE_FSDP"] = "true"
-    # os.environ["FSDP_SHARDING_STRATEGY"] = "1"
-    # os.environ["FSDP_OFFLOAD_PARAMS"] = "true"
-    # os.environ["FSDP_AUTO_WRAP_POLICY"] = "TRANSFORMER_BASED_WRAP"
-    # os.environ["FSDP_TRANSFORMER_CLS_TO_WRAP"] = "LlamaDecoderLayer"
-    # os.environ["FSDP_BACKWARD_PREFETCH"] = "BACKWARD_PRE"
-
     set_up_hf_cache()
     handle_hf_key(args)
     handle_fsdp_params(args)
