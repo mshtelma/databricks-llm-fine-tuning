@@ -1,11 +1,12 @@
 import functools
+import json
 import pathlib
 from dataclasses import field, dataclass
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, Dict, Any
 import shutil
 
-
+import yaml
 from transformers import (
     IntervalStrategy,
     SchedulerType,
@@ -28,7 +29,8 @@ class ExtendedTrainingArguments:
 
     final_model_output_path: Optional[str] = field(default="/local_disk0/final_model")
 
-    deepspeed_config: Optional[str] = field(default=None)
+    deepspeed_config: Optional[Tuple[str, Dict[str, Any]]] = field(default=None)
+    fsdp_config: Optional[Tuple[str, Dict[str, Any]]] = field(default=None)
 
     output_dir: Optional[str] = field(default=None)
     per_device_train_batch_size: Optional[int] = field(default=1)
@@ -141,3 +143,15 @@ def remote_login():
             func=_f, schema="res string", barrier=True
         ).toPandas()
         display(p_df)
+
+
+def resolve_deepspeed_config(path: str) -> Dict[str, Any]:
+    config_path = str((pathlib.Path.cwd() / ".." / "ds_configs" / path).resolve())
+    with open(config_path) as file:
+        return json.load(file)
+
+
+def resolve_fsdp_config(path: str) -> Dict[str, Any]:
+    config_path = str((pathlib.Path.cwd() / ".." / "fsdp_configs" / path).resolve())
+    with open(config_path) as file:
+        return yaml.safe_load(file)
